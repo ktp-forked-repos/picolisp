@@ -1,4 +1,4 @@
-# 31mar13abu
+# 07sep14abu
 # (c) Software Lab. Alexander Burger
 
 # (car 'var) -> any
@@ -1074,8 +1074,7 @@
 
 # (full 'any) -> bool
 (code 'doFull 2)
-   ld E (E CDR)  # Get arg
-   ld E (E)  # Eval it
+   ld E ((E CDR))  # Eval arg
    eval
    do
       atom E  # Pair?
@@ -3049,7 +3048,6 @@
 (code 'doRank 2)
    push X
    push Y
-   push Z
    ld X (E CDR)  # Args
    ld E (X)  # Eval first
    eval
@@ -3062,77 +3060,35 @@
    link
    ld E ((X CDR))  # Eval 'flg'
    eval
-   ld X (L I)  # Get 'lst' in X
-   atom X  # Empty?
+   ld X Nil  # Preload result
+   ld Y (L I)  # Get 'lst' in Y
+   atom Y  # Empty?
    if z  # No
-      ld Z 0  # Calculate length in Z
-      ld Y X
-      do
-         inc Z  # Increment length
-         ld Y (Y CDR)  # Next cell?
-         atom Y
-      until nz  # No
-      ld A ((X))  # First CAAR
       cmp E Nil  # 'flg'?
       if eq  # No
-         ld E (L II)  # Compare CAAR with 'any'
-         call compareAE_F
-         jgt 10  # Return NIL if too big
          do
-            ld C Z  # Length
-            shr C 1  # One?
-         while nz  # No
-            ld Y X  # Offset Y
-            do
-               ld Y (Y CDR)
-               dec C
-            until z
             ld A ((Y))  # Compare CAAR
             ld E (L II)  # with 'any'
             call compareAE_F  # Greater?
-            if gt  # Search left half
-               ld Y X  # Move right pointer back
-               shr Z 1  # Half length
-            else  # Search right half
-               ld X Y  # Move left pointer to offset
-               ld C Z
-               shr C 1  # Set length to remainder
-               sub Z C
-            end
-         loop
+            break gt  # Yes
+            ld X Y  # Result so far
+            ld Y (Y CDR)
+            atom Y  # More?
+         until nz  # No
       else
-         ld E (L II)  # Compare CAAR with 'any'
-         call compareAE_F
-         jlt 10  # Return NIL if too small
          do
-            ld C Z  # Length
-            shr C 1  # One?
-         while nz  # No
-            ld Y X  # Offset Y
-            do
-               ld Y (Y CDR)
-               dec C
-            until z
             ld A ((Y))  # Compare CAAR
             ld E (L II)  # with 'any'
-            call compareAE_F  # Smaller?
-            if lt  # Search left half
-               ld Y X  # Move right pointer back
-               shr Z 1  # Half length
-            else  # Search right half
-               ld X Y  # Move left pointer to offset
-               ld C Z
-               shr C 1  # Set length to remainder
-               sub Z C
-            end
-         loop
+            call compareAE_F  # Less?
+            break lt  # Yes
+            ld X Y  # Result so far
+            ld Y (Y CDR)
+            atom Y  # More?
+         until nz  # No
       end
-      ld E (X)  # Return CAR
-   else
-10    ld E Nil
    end
+   ld E (X)  # Return CAR
    drop
-   pop Z
    pop Y
    pop X
    ret
@@ -3693,7 +3649,8 @@
          ld (L V) ((L V) CDR)  # nl = cdr(nl)
          continue T
       end
-      cmp (X) TSym  # car(tp1) == T?
+      ld Y (X)  # car(tp1)
+      cmp Y TSym  # car(tp1) == T?
       if eq
          do
             ld C ((L IX))  # car(q)
@@ -3706,12 +3663,12 @@
          ld (L III) (X CDR)  # tp1 = cdr(tp1)
          continue T
       end
-      num ((X))  # caar(tp1) numeric?
+      num (Y)  # caar(tp1) numeric?
       if nz  # Yes
-         ld E ((X) CDR)  # Eval cdar(tp1)
-         eval
+         ld Z (Y CDR)  # Run Lisp body
+         prog Z
          ld (L I) E  # -> e
-         ld C ((X))  # Get count
+         ld C (Y)  # Get count
          shr C 4  # Normalize short
          ld A (L V)  # nl
          do
@@ -3730,50 +3687,29 @@
          ld (L III) (L I)  # tp1 = e
          continue T
       end
-      ld E ((X))  # caar(tp1)
-      sym E  # Symbolic?
-      if nz  # Yes
-         ld A (E TAIL)
-         call firstByteA_B  # starting with "@"?
-         cmp B (char "@")
-         if eq  # Yes
-            ld E ((X) CDR)  # Eval cdar(tp1)
-            eval
-            ld (L I) E  # -> e
-            cmp E Nil  # Any?
-            if ne  # Yes
-               ld C ((L V))  # car(nl)
-               ld Y ((X))  # caar(tp1)
-               ld E C  # car(nl)
-               ld Z (L I)  # e
-               call unifyCEYZ_F  # Match?
-               if eq  # Yes
-                  ld (L III) ((L III) CDR)  # tp1 = cdr(tp1)
-                  continue T
-               end
-            end
-            ld X (((L IX)))  # env = caar(q)
-            ld ((L IX)) (((L IX)) CDR)  # car(q) = cdar(q)
-            ld (L VI) (X)  # n = car(env)
-            ld X (X CDR)  # env = cdr(env)
-            ld (L V) (X)  # nl = car(env)
-            ld X (X CDR)  # env = cdr(env)
-            ld (L IV) (X)  # alt = car(env)
-            ld X (X CDR)  # env = cdr(env)
-            ld (L III) (X)  # tp1 = car(env)
-            ld X (X CDR)  # env = cdr(env)
-            ld (L II) (X)  # tp2 = car(env)
-            ld X (X CDR)  # env = cdr(env)
-            ld (L VII) X  # Set env
-            continue T
-         end
+      ld E (Y)  # caar(tp1)
+      cmp E Up  # Lisp call?
+      if eq  # Yes
+         ld Z ((Y CDR) CDR)  # Run Lisp body
+         prog Z
+         ld (L I) E  # -> e
+         cmp E Nil  # Any?
+         jeq 20  # No
+         ld C ((L V))  # car(nl)
+         ld Y ((Y CDR))  # cadar(tp1)
+         ld E C  # car(nl)
+         ld Z (L I)  # e
+         call unifyCEYZ_F  # Match?
+         jne 20  # No
+         ld (L III) ((L III) CDR)  # tp1 = cdr(tp1)
+         continue T
       end
       ld C TSym  # get(caar(tp1), T)
       call getEC_E
       ld (L IV) E  # -> alt
       atom E  # Atomic?
       if nz  # Yes
-         ld X (((L IX)))  # env = caar(q)
+20       ld X (((L IX)))  # env = caar(q)
          ld ((L IX)) (((L IX)) CDR)  # car(q) = cdar(q)
          ld (L VI) (X)  # n = car(env)
          ld X (X CDR)  # env = cdr(env)
@@ -3925,7 +3861,7 @@
    end
    ret
 
-# (-> sym [num]) -> any
+# (-> any [num]) -> any
 (code 'doArrow 2)
    push Z
    ld E (E CDR)  # E on args

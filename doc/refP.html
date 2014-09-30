@@ -81,7 +81,8 @@ href="refA.html#align">align</a></code>.
 
 <dt><a name="pair"><code>(pair 'any) -> any</code></a>
 <dd>Returns <code>any</code> when the argument is a cons pair. See also <code><a
-href="refA.html#atom">atom</a></code>.
+href="refA.html#atom">atom</a></code> and <code><a
+href="refL.html#lst?">lst?</a></code>.
 
 <pre><code>
 : (pair NIL)
@@ -269,7 +270,7 @@ href="refI.html#intern">intern</a></code>.
 : (symbols)
 -> pico
 : (cdr pico)
--> (rollback (*NoTrace (ledSearch (expandTab (********)) *CtryCode ...
+-> (rollback (*NoTrace (*CtryCode (+IdxFold) genStrKey) basename ...
 </code></pre>
 
 <dt><a name="pil"><code>(pil ['any ..]) -> sym</code></a>
@@ -640,7 +641,9 @@ href="refM.html#memq">memq</a></code>.
 <dt><a name="proc"><code>(proc 'sym ..) -> T</code></a>
 <dd>(Debug mode only) Shows a list of processes with command names given by the
 <code>sym</code> arguments, using the system <code>ps</code> utility. See also
-<code><a href="refH.html#hd">hd</a></code>.
+<code><a href="refK.html#kids">kids</a></code>, <code><a
+href="refK.html#kill">kill</a></code> and <code><a
+href="refH.html#hd">hd</a></code>.
 
 <pre><code>
 : (proc 'pil)
@@ -740,23 +743,26 @@ href="refU.html#unify">unify</a></code>.
 -> NIL
 </code></pre>
 
-<dt><a name="prune"><code>(prune ['flg])</code></a>
-<dd>Optimizes memory usage by pruning in-memory leaf nodes of database trees.
-Typically called repeatedly during heavy data imports. If <code>flg</code> is
-non-<code>NIL</code>, further pruning will be disabled. See also <code><a
-href="refL.html#lieu">lieu</a></code>.
+<dt><a name="prune"><code>(prune ['cnt])</code></a>
+<dd>Optimizes memory usage by pruning in-memory nodes of database trees.
+Typically called repeatedly during bulk data imports. If <code>cnt</code> is
+<code>NIL</code>, further pruning will be disabled. Otherwise, all nodes which
+have not been accessed (with <code><a href="refF.html#fetch">fetch</a></code> or
+<code><a href="refS.html#store">store</a></code>) for <code>cnt</code> calls to
+<code>prune</code> will be <code><a href="refW.html#wipe">wipe</a></code>d. See
+also <code><a href="refL.html#lieu">lieu</a></code>.
 
 <pre><code>
 (in File1
    (while (someData)
       (new T '(+Cls1) ..)
-      (at (0 . 10000) (commit) (prune)) ) )
+      (at (0 . 10000) (commit) (prune 100)) ) )
 (in File2
    (while (moreData)
       (new T '(+Cls2) ..)
-      (at (0 . 10000) (commit) (prune)) ) )
+      (at (0 . 10000) (commit) (prune 100)) ) )
 (commit)
-(prune T)
+(prune)
 </code></pre>
 
 <dt><a name="push"><code>(push 'var 'any ..) -> any</code></a>
@@ -871,7 +877,7 @@ href="refC.html#cd">cd</a></code>.
 
 <pre><code>
 : (pwd)
--> "/home/app/"
+-> "/home/app"
 </code></pre>
 
 </dl>

@@ -1,4 +1,4 @@
-# 06may13abu
+# 15sep14abu
 # (c) Software Lab. Alexander Burger
 
 ### Evaluation ###
@@ -17,7 +17,7 @@
 
 
 ### sigio ###
-(unless (member *OS '("SunOS" "OpenBSD"))
+(unless (member *OS '("SunOS" "OpenBSD" "Cygwin" "AIX"))
    (sigio (setq "SigSock" (port T 0 "SigPort"))
       (setq "SigVal" (udp "SigSock")) )
    (udp "localhost" "SigPort" '(a b c))
@@ -25,6 +25,13 @@
    (test '(a b c) "SigVal")
    (close "SigSock") )
 
+
+### kids ###
+(test
+   (make
+      (do 7
+         (link (or (fork) (wait 2000) (bye))) ) )
+   (flip (kids)) )
 
 ### protect ###
 (test NIL (pipe (prog (kill *Pid) (pr 7)) (rd)))

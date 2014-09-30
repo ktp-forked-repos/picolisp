@@ -419,7 +419,8 @@ href="refD.html#db/3">db/3</a></code>.
                (when (or Sock (setq Sock (connect @Host 4040)))
                   (ext @Ext
                      (out Sock (pr (cons 'qsym Obj)))
-                     (prog1 (in Sock (rd))
+                     (prog1
+                        (in Sock (rd))
                         (unless @
                            (close Sock)
                            (off Sock) ) ) ) ) ) ) )
@@ -504,9 +505,9 @@ backtracking. See also <code><a href="refR.html#repeat">repeat</a></code> and
 
 <pre><code>
 : (be integer (@I)   # Generate unlimited supply of integers
-   (@C box 0)        # Init to zero
+   (^ @C (box 0))    # Init to zero
    (repeat)          # Repeat from here
-   (@I inc (-> @C)) )
+   (^ @I (inc (-> @C))) )
 -> integer
 
 : (? (integer @X))
@@ -638,7 +639,7 @@ Hello world
 -> (0 733216 . 53922)
 </code></pre>
 
-<dt><a name="rollback"><code>(rollback) -> T</code></a>
+<dt><a name="rollback"><code>(rollback) -> flg</code></a>
 <dd>Cancels a transaction, by discarding all modifications of external symbols.
 See also <code><a href="refC.html#commit">commit</a></code>.
 

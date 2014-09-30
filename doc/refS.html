@@ -23,6 +23,11 @@ href="refS.html#scl">scl</a></code>.
 -> 3
 : (str "123.45")
 -> (123450)
+
+: 123.4567
+-> 123457
+: 12.3456
+-> 12346
 </code></pre>
 
 <dt><a name="*Sig1"><code>*Sig1</code></a>
@@ -256,10 +261,12 @@ href="refH.html#hash">hash</a></code>.
 <dt><a name="seek"><code>(seek 'fun 'lst ..) -> lst</code></a>
 <dd>Applies <code>fun</code> to <code>lst</code> and all successive CDRs, until
 non-<code>NIL</code> is returned. Returns the tail of <code>lst</code> starting
-with that element, or <code>NIL</code> if <code>fun</code> did not return
-non-<code>NIL</code> for any element of <code>lst</code>. When additional
-<code>lst</code> arguments are given, they are passed to <code>fun</code> in the
-same way. See also <code><a href="refF.html#find">find</a></code>, <code><a
+with that element (and stores the non-<code>NIL</code> value in the global
+variable <code><a href="ref_.html#@@">@@</a></code>), or <code>NIL</code> if
+<code>fun</code> did not return non-<code>NIL</code> for any element of
+<code>lst</code>. When additional <code>lst</code> arguments are given, they are
+passed to <code>fun</code> in the same way. See also <code><a
+href="refF.html#find">find</a></code>, <code><a
 href="refP.html#pick">pick</a></code>.
 
 <pre><code>
@@ -563,7 +570,9 @@ href="refU.html#uniq">uniq</a></code>.
 
 <dt><a name="space"><code>(space ['cnt]) -> cnt</code></a>
 <dd>Prints <code>cnt</code> spaces, or a single space when <code>cnt</code> is
-not given.
+not given. See also <code><a href="refB.html#beep">beep</a></code>, <code><a
+href="refP.html#prin">prin</a></code> and <code><a
+href="refC.html#char">char</a></code>.
 
 <pre><code>
 : (space)
@@ -600,9 +609,12 @@ href="refS.html#stem">stem</a></code>.
 -> ("The" "quick" "brown" "fox")
 </code></pre>
 
-<dt><a name="sqrt"><code>(sqrt 'num ['flg]) -> num</code></a>
+<dt><a name="sqrt"><code>(sqrt 'num ['flg|num]) -> num</code></a>
 <dd>Returns the square root of the <code>num</code> argument. If
 <code>flg</code> is given and non-<code>NIL</code>, the result will be rounded.
+If in addition to that <code>flg</code> is a number, the first argument will be
+multiplied with it before doing the square root calculation. See also <code><a
+href="ref_.html#*/">*/</a></code>.
 
 <pre><code>
 : (sqrt 64)
@@ -613,6 +625,11 @@ href="refS.html#stem">stem</a></code>.
 -> 32
 : (sqrt 10000000000000000000000000000000000000000)
 -> 100000000000000000000
+
+: (scl 6)
+-> 6
+: (sqrt 2.0 1.0)
+-> 1414214
 </code></pre>
 
 <dt><a name="stack"><code>(stack ['cnt]) -> cnt | (.. sym . cnt)</code></a>
@@ -620,24 +637,23 @@ href="refS.html#stem">stem</a></code>.
 href="ref.html#coroutines">coroutines</a> (the main stack segment is limited -
 while at least one coroutine is running - to four times that size). If called
 without a <code>cnt</code> argument, or if already one or more coroutines are
-running, the current size in megabytes is returned. Otherwise, the stack segment
-size is set to the new value (default 1 MB). The main segment's size is always
-four times the size of coroutine segments. If there are running coroutines,
+running, the current size in kilobytes is returned. Otherwise, the stack segment
+size is set to the new value (default 64 kB). If there are running coroutines,
 their tags will be <code><a href="refC.html#cons">cons</a></code>ed in front of
 the size. See also <code><a href="refH.html#heap">heap</a></code>.
 
 <pre><code>
 $ ulimit -s unlimited  &&  pil +  # Guarantee stack space
 : (stack)      # Current size
--> 1
-: (stack 4)    # Set to 4 MB
--> 4
+-> 64          # 64 kB
+: (stack 200)  # Set to 200 kB
+-> 200
 : (co 'inc (let N 0 (loop (yield (inc 'N)))))  # Create two coroutines
 -> 1
 : (co 'dec (let N 0 (loop (yield (dec 'N)))))
 -> -1
 : (stack)
--> (dec inc . 4)
+-> (dec inc . 200)
 </code></pre>
 
 <dt><a name="stamp"><code>(stamp ['dat 'tim]|['T]) -> sym</code></a>
@@ -875,11 +891,11 @@ Calls</a>.
 
 <pre><code>
 : (sub? "def" "abcdef")
--> T
+-> "abcdef"
 : (sub? "abb" "abcdef")
 -> NIL
 : (sub? NIL "abcdef")
--> T
+-> "abcdef"
 </code></pre>
 
 <dt><a name="subr"><code>(subr 'sym) -> num</code></a>
@@ -934,6 +950,22 @@ href="refT.html#try">try</a></code>.
    ... )             # other things
 </code></pre>
 
+<dt><a name="swap"><code>(swap 'var 'any) -> any</code></a>
+<dd>Set the value of <code>var</code> to <code>any</code>, and return the
+previous value. See also <code><a href="refX.html#xchg">xchg</a></code> and
+<code><a href="refS.html#set">set</a></code>.
+
+<pre><code>
+: (setq A 7  L (1 2 3))
+-> (1 2 3)
+: (swap (cdr L) (swap 'A 'xyz))
+-> 2
+: A
+-> xyz
+: L
+-> (1 7 3)
+</code></pre>
+
 <dt><a name="sym"><code>(sym 'any) -> sym</code></a>
 <dd>Generate the printed representation of <code>any</code> into the name of a
 new symbol <code>sym</code>. This is the reverse operation of <code><a
@@ -977,8 +1009,9 @@ the previous namespace <code>sym2</code>. If in the third form more than one
 namespaces are not interned into <code>sym2</code>. See also <code><a
 href="refP.html#pico">pico</a></code>, <code><a
 href="refL.html#local">local</a></code>, <code><a
-href="refI.html#import">import</a></code> and <code><a
-href="refI.html#intern">intern</a></code>.
+href="refI.html#import">import</a></code>, <code><a
+href="refI.html#intern">intern</a></code> and <code><a
+href="refL.html#load">load</a></code>.
 
 <pre><code>
 : (symbols 'myLib 'pico)

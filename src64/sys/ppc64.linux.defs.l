@@ -1,4 +1,4 @@
-# 20oct11abu
+# 11sep14abu
 # (c) Software Lab. Alexander Burger
 
 # errno
@@ -26,7 +26,7 @@
 (equ BUFSIZ 8192)
 (equ PIPE_BUF 4096)
 
-(equ MAXPATHLEN 4096)
+(equ GETCWDLEN 4096)
 
 # dlfcn
 (equ RTLD_LAZY 1)
@@ -69,8 +69,12 @@
 # termios
 (equ TERMIOS 60)  # Terminal I/O structure
 (equ C_IFLAG 0)
+(equ C_OFLAG 4)
+(equ C_CFLAG 8)
 (equ C_LFLAG 12)
 (equ C_CC 17)
+(equ OPOST 1)
+(equ ONLCR 4)
 (equ ISIG 128)
 (equ VMIN 5)
 (equ VTIME 7)

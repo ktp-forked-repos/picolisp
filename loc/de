@@ -1,4 +1,4 @@
-# 22dec08abu
+# 06may14abu
 # (c) Software Lab. Alexander Burger
 
 "Language" "Sprache"
@@ -37,19 +37,28 @@
 "Delete" "Löschen"
 "Delete @1?" "@1 löschen?"
 "Data not found" "Datensatz nicht gefunden"
+"Undo" "Rückgängig"
+"Undo: '@1'" "Rückgängig: '@1'"
+"Redo" "Wiederherstellen"
+"Redo: '@1'" "Wiederherstellen: '@1'"
 
 # General
 "login" "anmelden"
 "logout" "abmelden"
 "' logged in" "' ist angemeldet"
 "Name" "Name"
+"Login Name" "Login-Name"
+"Full Name" "Vollständiger Name"
 "Password" "Passwort"
 "Permission denied" "Keine Berechtigung"
 "Permissions" "Berechtigungen"
 "Role" "Rolle"
+"Role Administration" "Rollenverwaltung"
 "Roles" "Rollen"
 "User" "Benutzer"
+"User Administration" "Benutzerverwaltung"
 "Users" "Benutzer"
+"Phone" "Telefon"
 
 # Tooltips
 "Open submenu" "Untermenü öffnen"

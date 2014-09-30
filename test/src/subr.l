@@ -1,4 +1,4 @@
-# 31mar13abu
+# 13may14abu
 # (c) Software Lab. Alexander Burger
 
 ### c[ad]*r ###
@@ -76,7 +76,6 @@
 
 
 ### range ###
-(test (1 2 3 4 5 6) (range 1 6))
 (test (1 2 3 4 5 6) (range 1 6))
 (test (6 5 4 3 2 1) (range 6 1))
 (test (-3 -2 -1 0 1 2 3) (range -3 3))
@@ -496,12 +495,12 @@
 
 ### -> ###
 (test '((@A . 3) (@B . 7))
-   (prove (goal '(@A 3  (@B + 4 (-> @A))))) )
+   (prove (goal '(@A 3 (^ @B (+ 4 (-> @A)))))) )
 
 
 ### unify ###
 (test '((@A ((NIL . @C) 0 . @C) ((NIL . @B) 0 . @B) T))
-   (prove (goal '((@A unify '(@B @C))))) )
+   (prove (goal '((^ @A (unify '(@B @C)))))) )
 
 
 ### sort ###

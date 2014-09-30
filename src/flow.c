@@ -1,4 +1,4 @@
-/* 06may13abu
+/* 25feb14abu
  * (c) Software Lab. Alexander Burger
  */
 
@@ -229,8 +229,8 @@ any doDef(any ex) {
    }
    else {
       x = cdr(x),  Push(c3, EVAL(car(x)));
-      if (!isNil(data(c2)))
-         Touch(ex,data(c1));
+      if (isExt(data(c1)))
+         db(ex, data(c1), !isNil(data(c2))? 2 : 1);
       if (!isNil(y = get(data(c1), data(c2)))  &&  !equal(data(c3), y))
          redefMsg(data(c1), data(c2));
       put(data(c1), data(c2), data(c3));
@@ -1032,6 +1032,25 @@ any doCase(any x) {
    return Nil;
 }
 
+// (casq 'any (any1 . prg1) (any2 . prg2) ..) -> any
+any doCasq(any x) {
+   any y, z;
+
+   x = cdr(x),  val(At) = EVAL(car(x));
+   while (isCell(x = cdr(x))) {
+      y = car(x),  z = car(y);
+      if (z == T  ||  z == val(At))
+         return prog(cdr(y));
+      if (isCell(z)) {
+         do
+            if (car(z) == val(At))
+               return prog(cdr(y));
+         while (isCell(z = cdr(z)));
+      }
+   }
+   return Nil;
+}
+
 // (state 'var (sym|lst exe [. prg]) ..) -> any
 any doState(any ex) {
    any x, y, a;
@@ -1518,8 +1537,10 @@ any doCall(any ex) {
       }
       if (Termio)
          tcsetpgrp(0,getpgrp());
-      if (!WIFSTOPPED(res))
+      if (!WIFSTOPPED(res)) {
+         val(At2) = box(res+res);
          return res == 0? T : Nil;
+      }
       load(NULL, '+', Nil);
       if (Termio)
          tcsetpgrp(0,pid);

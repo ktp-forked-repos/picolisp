@@ -1,4 +1,4 @@
-# 12jun13abu
+# 11sep14abu
 # (c) Software Lab. Alexander Burger
 
 # Close file descriptor
@@ -491,53 +491,68 @@
    if z  # No: Direct buffer pointer
       # xxxxx.xxxxxxx.xxxxxxx.xxxxxxx.xxxxxxx.xxxxxxx.xxxxxxx.xxxxxxS010
       #    59      51      43      35      27      19      11       3
-      cmp C 59  # Short digit full?
-      if ne  # No
-         shl A C  # Shift byte to character position
-         or (X) A  # Combine with short number
-         add C 8  # Increment position
+      cmp C 67  # Short full?
+      if eq  # Yes
+         ld C (X)  # Get short number
+         shr C 3  # De-normalize, keep sign bit
+         shl A 4  # New digit
+         or A CNT  # Make short number
+         call consNumCA_C  # Box number
+         ld (X) C
+         ld X C
+         ld C 12  # Next digit in bignum
          ret
       end
-      ld C (X)  # Get short number
-      shr C 3  # De-normalize, keep sign bit
-      shl A 56  # Combine byte with digit
-      or C A
-      call boxNum_A  # Box number
-      ld (A DIG) C
-      ld (X) A
-      ld X A
-      ld C 0  # Start new digit
-      ret
-   end
-   null C  # Last bit of big digit?
-   if z  # Yes
-      ld C (X DIG)
-      shr A 1  # Get lowest bit
-      rcr C 1  # into highest bit of big digit
-      ld (X DIG) C
-      rcl A 1  # Get sign bit into A
-      shl A 3  # Normalize with sign
-      or A CNT  # Make short number
-      ld (X BIG) A
-      ld C 11  # Set up for second byte
-      ret
-   end
-   cmp C 59  # Short digit full?
-   if ne  # No
+      cmp C 59  # Short digit full?
+      if eq  # Yes
+         cmp A 32  # Fit into 5 bits?
+         if ge  # No
+            ld C (X)  # Get short number
+            shr C 3  # De-normalize, keep sign bit
+            shl A 56  # Combine byte with digit
+            or A C
+            call boxNumA_A  # Box number
+            ld (X) A
+            ld X A
+            ld C 4  # Start next digit in bignum
+            ret
+         end
+      end
       shl A C  # Shift byte to character position
-      or (X BIG) A  # Combine with name digit
+      or (X) A  # Combine with short number
       add C 8  # Increment position
       ret
    end
-   ld C (X BIG)  # Get short number
-   shr C 3  # De-normalize, keep sign bit
-   shl A 56  # Combine byte with digit
-   or C A
-   call boxNum_A  # Box number
-   ld (A DIG) C
-   ld (X BIG) A
-   ld X A
-   ld C 0  # Start new digit
+   cmp C 68  # Last short full?
+   if eq  # Yes
+      ld C (X BIG)  # Get short number
+      shr C 4  # De-normalize
+      shl A 4  # New digit
+      or A CNT  # Make short number
+      call consNumCA_C  # Box number
+      ld (X BIG) C
+      ld X C
+      ld C 12  # Next digit in bignum
+      ret
+   end
+   cmp C 60  # Short digit full?
+   if eq  # Yes
+      cmp A 16  # Fit into 4 bits?
+      if ge  # No
+         ld C (X BIG)  # Get short number
+         shr C 4  # De-normalize
+         shl A 56  # Combine byte with digit
+         or A C
+         call boxNumA_A  # Box number
+         ld (X BIG) A
+         ld X A
+         ld C 4  # Next digit in bignum
+         ret
+      end
+   end
+   shl A C  # Shift byte to character position
+   or (X BIG) A  # Combine with name digit
+   add C 8  # Increment position
    ret
 
 # Read binary expression
@@ -628,12 +643,15 @@
          dec E  # Decrement count
       until z
 20    ld E (L I)  # Get result
-      big X  # Big number?
+      big E  # Big number?
       if nz  # Yes
-         ld A (X BIG)  # Get last short
-         and A SIGN  # Sign bit
-         off (X BIG) SIGN
-         or E A  # Set sign bit in result
+         ld X (E DIG)  # Keep lowest digit
+         ld A E  # Half result
+         call halfA_A
+         ld E X  # Sign bit
+         and E 1
+         shl E 3
+         or E A  # Set in result
       end
    else  # INTERN, TRANSIENT or EXTERN
       push A  # Tag
@@ -1028,7 +1046,7 @@
 
 (code 'tellBegZ_Z 0)
    ld (TellBuf) Z  # Set global buffer
-   add Z 4  # 4 bytes space (PID and count)
+   add Z 8  # 8 bytes space (PID and count)
    set (Z) BEG  # Begin a list
    inc Z
    ret
@@ -1039,13 +1057,13 @@
    set (Z) END  # Close list
    inc Z
    ld X (TellBuf)  # Get buffer
-   st2 (X)  # Store PID
+   st4 (X)  # Store PID
    push A  # <S I> PID
    ld E Z  # Calculate total size
    sub E X
    ld A E  # Size in A
-   sub A 4  # without PID and count
-   st2 (X 2)  # Store in buffer count
+   sub A 8  # without PID and count
+   st4 (X 4)  # Store in buffer count
    push A  # <S> Size
    ld C (Tell)  # File descriptor
    null C  # Any?
@@ -1069,7 +1087,7 @@
          cmp A (Y)  # Same as 'pid'?
          if eq  # Yes
 10          ld C (S)  # Get size
-            lea X ((TellBuf) 4)  # and data
+            lea X ((TellBuf) 8)  # and data
             call wrChildCXY  # Write to child
          end
       end
@@ -1086,7 +1104,7 @@
    if nz  # Yes
       push 0  # Send zero
       ld X S  # Get buffer
-      ld E 4  # Size (PID and count)
+      ld E 8  # Size (PID and count)
       call wrBytesCEX_F  # Write buffer to pipe
       if nz  # Not successful
          cc close(C)  # Close 'Tell'
@@ -2004,6 +2022,59 @@
 # Skip White Space and Comments
 (code 'skipC_A 0)
    ld A (Chr)
+   null A  # EOF?
+   if ns  # No
+      do
+         do
+            cmp B 32  # White space?
+         while le  # Yes
+            call (Get_A)  # Get next
+            null A  # EOF?
+            js 90  # Yes
+         loop
+         cmp A C  # Comment char?
+      while eq  # Yes
+         call (Get_A)
+         do
+            cmp B 10  # Linefeed?
+         while ne  #No
+            null A  # EOF?
+            js 90  # Yes
+            call (Get_A)
+         loop
+      loop
+   end
+90 ret
+
+(code 'comment_A 0)
+   call (Get_A)
+   cmp B (char "{")
+   if ne  # No
+      do
+         cmp B 10  # Linefeed?
+      while ne  #No
+         null A  # EOF?
+         js 90  # Yes
+         call (Get_A)
+      loop
+   else  # Block comment
+      do
+         call (Get_A)
+         null A  # EOF?
+         js 90  # Yes
+         cmp B (char "}")  # End of block comment?
+         if eq
+            call (Get_A)
+            cmp B (char "#")
+            break eq  # Yes
+         end
+      loop
+      call (Get_A)
+   end
+90 ret
+
+(code 'skip_A 0)
+   ld A (Chr)
    do
       null A  # EOF?
    while ns  # No
@@ -2012,38 +2083,13 @@
       while le  # Yes
          call (Get_A)  # Get next
          null A  # EOF?
-         js ret  # Yes
+         js 90  # Yes
       loop
-      cmp A C  # Comment char?
+      cmp B (char "#")  # Comment char?
    while eq  # Yes
-      call (Get_A)
-      cmp C (char "#")  # Block comment?
-      jne 10  # No
-      cmp B (char "{")
-      if ne  # No
-10       do
-            cmp B 10  # Linefeed?
-         while ne  #No
-            null A  # EOF?
-            js ret  # Yes
-            call (Get_A)
-         loop
-      else  # Block comment
-         do
-            call (Get_A)
-            null A  # EOF?
-            js ret  # Yes
-            cmp B (char "}")  # End of block comment?
-            if eq
-               call (Get_A)
-               cmp B (char "#")
-               break eq  # Yes
-            end
-         loop
-      end
-      call (Get_A)
+      call comment_A  # Skip comment
    loop
-   ret
+90 ret
 
 (code 'testEscA_F 0)
    do
@@ -2169,8 +2215,7 @@
    jlt stkErr
    call (Get_A)  # Skip paren
    do
-      ld C (char "#")
-      call skipC_A  # and white space
+      call skip_A  # and white space
       cmp B (char ")")  # Empty list?
       if eq  # Yes
          call (Get_A)  # Skip paren
@@ -2212,8 +2257,7 @@
       drop  # Continue
    loop
 10 do
-      ld C (char "#")
-      call skipC_A  # Skip white space
+      call skip_A  # Skip white space
       cmp B (char ")")  # Done?
       if eq  # Yes
          call (Get_A)  # Skip paren
@@ -2226,8 +2270,7 @@
          call (Get_A)  # Skip dot
          memb Delim "(DelimEnd-Delim)"  # Delimiter?
          if eq  # Yes
-            ld C (char "#")
-            call skipC_A  # and white space
+            call skip_A  # and white space
             cmp B (char ")")  # Circular list?
             jz 20  # Yes
             cmp B (char "]")
@@ -2241,8 +2284,7 @@
                pop E
                ld (E CDR) A  # Store in CDR
             end
-            ld C (char "#")
-            call skipC_A  # Skip white space
+            call skip_A  # Skip white space
             cmp B (char ")")  # Done?
             if eq  # Yes
                call (Get_A)  # Skip paren
@@ -2302,12 +2344,23 @@
    drop
    ret
 
+(code 'readC_E)
+   null (Chr)  # Empty channel?
+   if z  # Yes
+      call (Get_A)  # Fill 'Chr'
+   end
+   cmp C (Chr)  # Terminator?
+   if eq  # Yes
+      ld E Nil  # Return 'NIL'
+      ret
+   end
+   ld A 1  # Read top level expression
+
 (code 'readA_E)
    push X
    push Y
    push A  # <S> Top flag
-   ld C (char "#")
-   call skipC_A
+   call skip_A
    null A  # EOF?
    if s  # Yes
       null (S)  # Top?
@@ -2346,7 +2399,7 @@
    cmp B (char "'")  # Quote?
    if eq  # Yes
       call (Get_A)  # Skip "'"
-      ld A 0
+      ld A (S)
       call readA_E  # Read expression
       ld C E
       call consC_E  # Cons with 'quote'
@@ -2357,7 +2410,7 @@
    cmp B (char ",")  # Comma?
    if eq  # Yes
       call (Get_A)  # Skip ','
-      ld A 0
+      ld A (S)
       call readA_E  # Read expression
       ld X Uni  # Maintain '*Uni' index
       cmp (X) TSym  # Disabled?
@@ -2379,7 +2432,7 @@
    cmp B (char "`")  # Backquote?
    if eq  # Yes
       call (Get_A)  # Skip '`'
-      ld A 0
+      ld A (S)
       call readA_E  # Read expression
       link
       push E  # Save it
@@ -2484,36 +2537,6 @@
 99 pop A
    pop Y
    pop X
-   ret
-
-(code 'readC_E)
-   null (Chr)  # Empty channel?
-   if z  # Yes
-      call (Get_A)  # Fill 'Chr'
-   end
-   cmp C (Chr)  # Terminator?
-   if eq  # Yes
-      ld E Nil  # Return 'NIL'
-   else
-      ld A 1  # Top level
-      call readA_E  # Read expression
-      push E
-      ld A (Chr)
-      do
-         null A  # EOF?
-      while nsz  # No
-         cmp B 32  # Space?
-         jz 10
-         cmp B 9  # Tab?
-         jz 10
-         cmp B (char ")")  # or closing parens?
-         jz 10
-         cmp B (char "]")
-      while eq  # Yes
-10       call (Get_A)
-      loop
-      pop E
-   end
    ret
 
 (code 'tokenCE_E)  # X
@@ -2946,7 +2969,7 @@
                call rdSetCL_F  # Ready?
                if nz  # Yes
                   ld C (Y I)  # Get 'hear' fd again
-                  ld E 4  # Size of PID and count
+                  ld E 8  # Size of PID and count
                   ld X Buf  # Buffer pointer
                   call rdBytesNbCEX_F  # Read count?
                   if ge  # Yes
@@ -2954,7 +2977,7 @@
                         call clsChildY  # Close child
                         jmp 20  # Continue
                      end
-                     ld4 (Buf)  # PID and size?
+                     ld A (Buf)  # PID and size?
                      null A
                      if z  # No
                         cmp (Y) (Talking)  # Currently active?
@@ -2965,7 +2988,7 @@
                         sub S PIPE_BUF  # <S I> Pipe buffer
                         push Y  # <S> Outer child index
                         ld C (Y I)  # Get 'hear' fd again
-                        ld2 (Buf 2)  # Get size
+                        ld4 (Buf 4)  # Get size
                         ld E A
                         lea X (S I)  # Buffer pointer
                         call rdBytesCEX_F  # Read data?
@@ -2977,12 +3000,12 @@
                               if ne  # No
                                  null (Y)  # 'pid'?
                                  if nz  # Yes
-                                    ld2 (Buf)  # Get PID
+                                    ld4 (Buf)  # Get PID
                                     null A  # Any?
                                     jz 15  # Yes
                                     cmp A (Y)  # Same as 'pid'?
                                     if eq  # Yes
-15                                     ld2 (Buf 2)  # Get size
+15                                     ld4 (Buf 4)  # Get size
                                        ld C A
                                        lea X (S I)  # and data
                                        call wrChildCXY  # Write to child
@@ -3161,7 +3184,9 @@
       ld C (L -I)  # File descriptor
       null C  # Positive?
    while ns  # Yes
+      push X
       call rdSetRdyCL_F  # Ready?
+      pop X
    until nz  # Yes
    ld (At) (L II)  # Restore '@'
    ld A (L -II)  # Return milliseconds
@@ -4149,10 +4174,24 @@
          nul4  # on a tty?
          ldz C 0  # No
          call readC_E  # Read expression
-         cmp (Chr) 10  # Hit linefeed?
-         if eq  # Yes
-            ld (Chr) 0  # Clear it
-         end
+         ld A (Chr)
+         do
+            null A  # EOF?
+         while nsz  # No
+            cmp B 10  # Linefeed?
+            if eq  # Yes
+               ld (Chr) 0  # Clear it
+               break T
+            end
+            cmp B (char "#")  # Comment char?
+            if eq  # Yes
+               call comment_A  # Skip comment
+            else
+               cmp B 32  # White space?
+               break gt  # No
+               call (Get_A)
+            end
+         loop
       end
       cmp E Nil
    while ne
@@ -4217,8 +4256,7 @@
    push X
    push Y
    ld X E  # Expression in X
-   ld E (E CDR)
-   ld E (E)  # Eval 'any'
+   ld E ((E CDR))  # Eval 'any'
    eval
    sub S IV  # InFrame
    ld Y S
@@ -4237,8 +4275,7 @@
    push X
    push Y
    ld X E  # Expression in X
-   ld E (E CDR)
-   ld E (E)  # Eval 'any'
+   ld E ((E CDR))  # Eval 'any'
    eval
    sub S IV  # OutFrame
    ld Y S
@@ -4257,8 +4294,7 @@
    push X
    push Y
    ld X E  # Expression in X
-   ld E (E CDR)
-   ld E (E)  # Eval 'any'
+   ld E ((E CDR))  # Eval 'any'
    eval
    sub S II  # ErrFrame
    ld Y S
@@ -4277,8 +4313,7 @@
    push X
    push Y
    ld X E  # Expression in X
-   ld E (E CDR)
-   ld E (E)  # Eval 'any'
+   ld E ((E CDR))  # Eval 'any'
    eval
    sub S II  # CtlFrame
    ld Y S
@@ -4839,6 +4874,12 @@
          else
             ld C 0
             call symByteCX_FACX  # Get first byte
+            cmp B (char "#")  # Hash?
+            if eq
+               ld B (char "\\")  # Print backslash
+               call (PutB)
+               ld B (char "#")  # Restore Hash
+            end
             do
                cmp B (char "\\")  # Backslash?
                jeq 10  # Yes
@@ -4858,7 +4899,7 @@
          atom (Tsm)  # Transient symbol markup?
          if z  # Yes
             cmp (PutB) putStdoutB  # to stdout?
-            if eq  # No
+            if eq  # Yes
                ld Y ((OutFile) II)  # and 'tty'? -> Y
             end
          end
@@ -5212,8 +5253,11 @@
                call byteNumBCX_CX  # Add next byte to number
                dec E  # Done?
             until z  # Yes
-            ld A (L I)  # Double result
-            call twiceA_A
+            ld A (L I)  # Get result
+            cnt A  # Short number?
+            if nz  # Yes
+               call twiceA_A  # Double it
+            end
          else
             ld X E  # Count in X
             do

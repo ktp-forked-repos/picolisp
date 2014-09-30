@@ -116,11 +116,17 @@ href="refP.html#path">path</a></code>.
 <dt><a name="be"><code>(be sym . any) -> sym</code></a>
 <dd>Declares a <a href="ref.html#pilog">Pilog</a> fact or rule for the
 <code>sym</code> argument, by concatenating the <code>any</code> argument to the
-<code>T</code> property of <code>sym</code>. See also <code><a
-href="refC.html#clause">clause</a></code>, <code><a
+<code>T</code> property of <code>sym</code>. Groups of declarations are
+collected for a given <code>sym</code>. When <code>sym</code> changes, i.e. when
+it differs from the one in the previous declaration, the current group is
+considered to be complete and a new group is started. Later <code>be</code>
+declarations for a previously completed symbol will reset its rules, to allow
+repeated re<code><a href="refL.html#load">load</a></code>ing of source files.
+See also <code><a href="refC.html#clause">clause</a></code>, <code><a
 href="refA.html#asserta">asserta</a></code>, <code><a
 href="refA.html#assertz">assertz</a></code>, <code><a
 href="refR.html#retract">retract</a></code>, <code><a
+href="refR.html#rules">rules</a></code>, <code><a
 href="refG.html#goal">goal</a></code> and <code><a
 href="refP.html#prove">prove</a></code>.
 
@@ -129,8 +135,15 @@ href="refP.html#prove">prove</a></code>.
 -> likes
 : (be likes (John @X) (likes @X wine) (likes @X food))
 -> likes
+
 : (get 'likes T)
 -> (((John Mary)) ((John @X) (likes @X wine) (likes @X food)))
+
+: (rules 'likes)
+1 (be likes (John Mary))
+2 (be likes (John @X) (likes @X wine) (likes @X food))
+-> likes
+
 : (? (likes John @X))
  @X=Mary
 -> NIL
@@ -138,6 +151,7 @@ href="refP.html#prove">prove</a></code>.
 
 <dt><a name="beep"><code>(beep) -> any</code></a>
 <dd>Send the bell character to the console. See also <code><a
+href="refS.html#space">space</a></code>, <code><a
 href="refP.html#prin">prin</a></code> and <code><a
 href="refC.html#char">char</a></code>.
 
@@ -313,6 +327,39 @@ href="refE.html#ext?">ext?</a></code>.
 -> NIL
 </code></pre>
 
+<dt><a name="bt"><code>(bt ['flg]) -> flg</code></a>
+<dd>(Debug mode 64-bit version only) Formatted stack backtrace printing (see
+<code><a href="refT.html#trail">trail</a></code>) for the current point of
+program execution. For each bind frame, the function call (reduced with <code><a
+href="refL.html#less">less</a></code>) is <code><a
+href="refP.html#pretty">pretty</a></code>-printed, followed by indented
+variable-value-pairs. If <code>flg</code> is <code>NIL</code>, <code>bt</code>
+then waits for console input, and terminates when a non-empty line is entered
+(like <code><a href="refM.html#more">more</a></code>). See also <code><a
+href="refU.html#up">up</a></code> and <code><a
+href="refE.html#env">env</a></code>.
+
+<pre><code>
+: (de f (A B)
+   (g (inc A) (dec B)) )
+-> f
+: (de g (C D)
+   (/ C D) )
+-> g
+
+: (f 2 1)
+!? (/ C D)
+Div/0
+? (bt)
+(f 2 1)
+   A 2
+   B 1
+(g (inc A) (dec B))
+   C 3
+   D 0
+-> T
+</code></pre>
+
 <dt><a name="by"><code>(by 'fun1 'fun2 'lst ..) -> lst</code></a>
 <dd>Applies <code>fun1</code> to each element of <code>lst</code>. When
 additional <code>lst</code> arguments are given, their elements are also passed
@@ -320,7 +367,7 @@ to <code>fun1</code>. Each result of <code>fun1</code> is CONSed with its
 corresponding argument form the original <code>lst</code>, and collected into a
 list which is passed to <code>fun2</code>. For the list returned from
 <code>fun2</code>, the CAR elements returned by <code>fun1</code> are
-(destructively) removed from each element.
+(destructively) removed from each element ("decorate-apply-undecorate" idiom).
 
 <pre><code>
 : (let (A 1 B 2 C 3) (by val sort '(C A B)))

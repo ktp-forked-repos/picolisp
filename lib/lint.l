@@ -1,4 +1,4 @@
-# 21may10abu
+# 18sep14abu
 # (c) Software Lab. Alexander Burger
 
 # *NoLint
@@ -40,7 +40,7 @@
                      (push '"*Bnd" "X") ) ) ) ) )
       ((num? (car "X")))
       (T
-         (case (car "X")
+         (casq (car "X")
             ((: ::))
             (; (lint1 (cadr "X")))
             (quote
@@ -64,6 +64,8 @@
                         (lintVar (pop '"Y"))
                         (pop '"Y") )
                      (mapc lint1 "Y") ) ) )
+            (macro
+               (lint2 (cdr "X")) )
             (let?
                (use "*L"
                   (lintVar (cadr "X"))
@@ -110,7 +112,7 @@
                            (lintVar (cdar "Y"))
                            (mapc lint1 (cddr "Y"))
                            (lintLoop (cddr "X")) ) ) ) ) )
-            ((case state)
+            ((case casq state)
                (lint1 (cadr "X"))
                (for "X" (cddr "X")
                   (mapc lint1 (cdr "X")) ) )
@@ -243,8 +245,8 @@
       (make
          (for "X" (all)
             (cond
-               ((= `(char "+") (char "X"))
-                  (for "Y" (val "X")
+               ((and (= `(char "+") (char "X")) (pair (val "X")))
+                  (for "Y" @
                      (and
                         (pair "Y")
                         (fun? (cdr "Y"))

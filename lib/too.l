@@ -1,47 +1,46 @@
-# 25jun13abu
+# 27sep14abu
 # (c) Software Lab. Alexander Burger
 
 ### Local Backup ###
-(de snapshot (Dst Max . @)
-   (let I -1
-      (while (info (pack Dst "." (inc 'I))))
-      (while (>= (dec 'I) Max)
-         (call 'rm "-r" (pack Dst "." I)) )
-      (while (ge0 I)
-         (call 'mv (pack Dst "." I) (pack Dst "." (inc I)))
-         (dec 'I) ) )
-   (call 'mkdir (pack Dst ".0"))
-   (while (args)
-      (let
-         (Lst (filter bool (split (chop (next)) '/))
-            Src (car Lst)
-            Old (pack Dst ".1/" Src)
-            New (pack Dst ".0/" Src) )
-         (recur (Lst Src Old New)
-            (ifn (cdr Lst)
-               (recur (Src Old New)
-                  (cond
-                     ((=T (car (info Src T)))  # Directory
-                        (call 'mkdir "-p" New)
-                        (for F (dir Src T)
-                           (unless (member F '("." ".."))
-                              (recurse
-                                 (pack Src '/ F)
-                                 (pack Old '/ F)
-                                 (pack New '/ F) ) ) )
-                        (call 'touch "-r" Src New) )
-                     ((= (info Src T) (info Old T))  # Same
-                        `(if (== 64 64)
-                           '(native "@" "link" 'I Old New)
-                           '(call 'ln Old New) ) )
-                     (T (call 'cp "-a" Src New)) ) )  # Changed or new
-               (call 'mkdir "-p" New)
-               (recurse
-                  (cdr Lst)
-                  (pack Src '/ (cadr Lst))
-                  (pack Old '/ (cadr Lst))
-                  (pack New '/ (cadr Lst)) )
-               (call 'touch "-r" Src New) ) ) ) ) )
+(de snapshot (Dst . @)
+   (when (info (pack Dst "/1"))
+      (for (L (flip (sort (extract format (dir Dst))))  L)
+         (let N (pop 'L)
+            (call 'mv (pack Dst '/ N) (pack Dst '/ (inc N)))
+            (when (> (car L) (*/ N 9 10))
+               (call 'rm "-rf" (pack Dst '/ (pop 'L))) ) ) ) )
+   (when (call 'mkdir (pack Dst "/1"))
+      (while (args)
+         (let
+            (Lst (filter bool (split (chop (next)) '/))
+               Src (car Lst)
+               Old (pack Dst "/2/" Src)
+               New (pack Dst "/1/" Src) )
+            (recur (Lst Src Old New)
+               (ifn (cdr Lst)
+                  (recur (Src Old New)
+                     (cond
+                        ((=T (car (info Src T)))  # Directory
+                           (call 'mkdir "-p" New)
+                           (for F (dir Src T)
+                              (unless (member F '("." ".."))
+                                 (recurse
+                                    (pack Src '/ F)
+                                    (pack Old '/ F)
+                                    (pack New '/ F) ) ) )
+                           (call 'touch "-r" Src New) )
+                        ((= (info Src T) (info Old T))  # Same
+                           `(if (== 64 64)
+                              '(native "@" "link" 'I Old New)
+                              '(call 'ln Old New) ) )
+                        (T (call 'cp "-a" Src New)) ) )  # Changed or new
+                  (call 'mkdir "-p" New)
+                  (recurse
+                     (cdr Lst)
+                     (pack Src '/ (cadr Lst))
+                     (pack Old '/ (cadr Lst))
+                     (pack New '/ (cadr Lst)) )
+                  (call 'touch "-r" Src New) ) ) ) ) ) )
 
 ### DB Garbage Collection ###
 (de dbgc ()
@@ -156,103 +155,60 @@
                NIL T T ) ) ) )
    (and *Dbs (dbfCheck))  # Check DB file assignments
    (and (dangling) (println 'dangling @))  # Show dangling index references
+   (and (badECnt) (println 'badECnt @))  # Show entity count mismatches
    T )
 
+# Check Index References
 (de dangling ()
    (make
       (dbMap
          '((This)
             (and
+               (isa '+Entity This)
                (not (: T))
                (dangle This)
                (link @) ) ) ) ) )
 
-# Check Index References
 (de dangle (Obj)
    (and
       (make
          (for X (getl Obj)
             (let V (or (atom X) (pop 'X))
-               (with (meta Obj X)
-                  (cond
-                     ((isa '+Joint This)
-                        (if (isa '+List This)
-                           (when
-                              (find
-                                 '((Y)
-                                    (if (atom (setq Y (get Y (: slot))))
-                                       (n== Obj Y)
-                                       (not (memq Obj Y)) ) )
-                                 V )
-                              (link X) )
-                           (let Y (get V (: slot))
-                              (if (atom Y)
-                                 (unless (== Obj Y) (link X))
-                                 (unless (memq Obj Y) (link X)) ) ) ) )
-                     ((isa '+Key This)
-                        (and
-                           (<> Obj
-                              (fetch
-                                 (tree X (: cls) (get Obj (: hook)))
-                                 V ) )
-                           (link X) ) )
-                     ((isa '+Ref This)
-                        (let
-                           (Tree (tree X (: cls) (get Obj (: hook)))
-                              Aux (conc (mapcar '((S) (get Obj S)) (: aux)) Obj) )
-                           (if (isa '+List This)
-                              (when
-                                 (find
-                                    '((Y)
-                                       (and
-                                          (or
-                                             (not (isa '+Fold This))
-                                             (setq V (fold V)) )
-                                          (<> Obj (fetch Tree (cons Y Aux))) ) )
-                                    V )
-                                 (link X) )
-                              (and
-                                 (or
-                                    (not (isa '+Fold This))
-                                    (setq V (fold V)) )
-                                 (<> Obj (fetch Tree (cons V Aux)))
-                                 (link X) ) ) ) )
-                     (T
-                        (for (N . B) (: bag)
-                           (cond
-                              ((isa '+Key B)
-                                 (with B
-                                    (when
-                                       (find
-                                          '((L)
-                                             (let? Val (get L N)
-                                                (<> Obj
-                                                   (fetch
-                                                      (tree (: var) (: cls)
-                                                         (get
-                                                            (if (sym? (: hook)) Obj L)
-                                                            (: hook) ) )
-                                                      Val ) ) ) )
-                                             V )
-                                          (link X) ) ) )
-                              ((isa '+Ref B)
-                                 (with B
-                                    (when
-                                       (find
-                                          '((L)
-                                             (let? Val (get L N)
-                                                (when (isa '+Fold This)
-                                                   (setq Val (fold Val)) )
-                                                (<> Obj
-                                                   (fetch
-                                                      (tree (: var) (: cls)
-                                                         (get
-                                                            (if (sym? (: hook)) Obj L)
-                                                            (: hook) ) )
-                                                      (cons Val Obj) ) ) ) )
-                                             V )
-                                          (link X) ) ) ) ) ) ) ) ) ) ) )
+               (unless (rel?> Obj X V)
+                  (link X) ) ) ) )
       (cons Obj @) ) )
+
+# Entity Counts
+(de badECnt ()
+   (let Cnt NIL
+      (for (F . @) *Dbs
+         (for (This (seq F) This (seq This))
+            (and
+               (isa '+Entity This)
+               (not (: T))
+               (for Cls (type This)
+                  (recur (Cls)
+                     (or
+                        (== '+Entity Cls)
+                        (for C (type Cls)
+                           (T (recurse C)
+                              (and (get *DB Cls) (accu 'Cnt Cls 1)) ) ) ) ) ) ) ) )
+      (filter
+         '((X)
+            (<> (cdr X) (get *DB (car X) 0)) )
+         Cnt ) ) )
+
+(de fixECnt ()
+   (for X (getl *DB)
+      (and (pair X) (set (car X) 0)) )
+   (commit)
+   (for (F . @) *Dbs
+      (for (This (seq F) This (seq This))
+         (and
+            (isa '+Entity This)
+            (not (: T))
+            (incECnt This) ) ) )
+   (commit) )
 
 ### Rebuild tree ###
 (de rebuild (X Var Cls Hook)
@@ -304,9 +260,15 @@
                (pair Rel)
                (or
                   (isa '+index (car Rel))
-                  (find '((B) (isa '+index B)) (; Rel 1 bag)) )
-               (unless (; Rel 1 dbf)
-                  (println 'dbfCheck (cdr Rel) "Cls") ) ) ) ) ) )
+                  (isa '+Swap (car Rel))
+                  (find
+                     '((B)
+                        (or
+                           (isa '+index B)
+                           (isa '+Swap B) ) )
+                     (; Rel 1 bag) ) )
+               (not (; @ dbf))
+               (println 'dbfCheck (cdr Rel) "Cls") ) ) ) ) )
 
 (de dbfMigrate (Pool Dbs)
    (let
@@ -400,7 +362,18 @@
             (commit) ) )
       '((Base Root Var Cls Hook)
          (if Var
-            (dbfRelocTree Base Root (tree Var Cls Hook) (get Cls Var 'dbf))
+            (dbfRelocTree Base Root
+               (tree Var Cls Hook)
+               (or
+                  (get Cls Var 'dbf)
+                  (and
+                     (find
+                        '((B)
+                           (or
+                              (isa '+index B)
+                              (isa '+Swap B) ) )
+                        (get Cls Var 'bag) )
+                     (get @ 'dbf) ) ) )
             (dbfRelocTree Base Root Base) ) ) )
    (dbgc) )
 
@@ -445,71 +418,79 @@
       (commit) ) )
 
 ### Dump Objects ###
-(de dump CL
-   (let B 0
-      (for ("Q" (goal CL) (asoq '@@ (prove "Q")))
-         (let (Obj (cdr @)  Lst)
-            (prin "(obj ")
-            (_dmp Obj)
-            (maps
-               '((X)
-                  (unless (or (member X Lst) (= `(char "+") (char (fin X))))
-                     (prinl)
-                     (space 3)
-                     (cond
-                        ((pair X)
-                           (printsp (cdr X))
-                           (_dmp (car X) T) )
-                        ((isa '+Blob (meta Obj X))
-                           (prin X " `(tmp " (inc 'B) ")")
-                           (out (tmp B)
-                              (in (blob Obj X) (echo)) ) )
-                        (T (print X T)) ) ) )
-                  Obj )
-            (prinl " )")
-            Obj ) ) ) )
+(zero *DumpBlob)
 
-(de _dmp (Obj Flg)
-   (cond
-      ((pair Obj)
+(dm (dumpKey> . +Entity) ()
+   (unless (: T)
+      (pick
+         '((X)
+            (and
+               (isa '+Key (meta This (fin X)))
+               (cons (fin X) X) ) )
+         (getl This) ) ) )
+
+(dm (dumpType> . +Entity) ()
+   (type This) )
+
+(dm (dumpValue> . +Entity) (X)
+   X )
+
+(de dump "CL"
+   (let "C" (cons 0 10000)
+      (for ("Q" (goal "CL") (asoq '@@ (prove "Q")))
+         (let (Obj (cdr @)  K (fin (dumpExt Obj)))
+            (for X (getl Obj)
+               (unless (or (= K (fin X)) (= `(char "+") (char (fin X))))
+                  (let? Y (dumpValue> Obj X)
+                     (cond
+                        ((pair Y)
+                           (prinl)
+                           (space 3)
+                           (if (atom (cdr Y))
+                              (printsp (cdr Y))
+                              (printsp (cadr Y))
+                              (prin "`") )
+                           (dumpVal (car Y)) )
+                        ((isa '+Blob (meta Obj X))
+                           (let F (blob Obj X)
+                              (ifn (info F)
+                                 (msg F " no blob")
+                                 (prinl)
+                                 (space 3)
+                                 (prin Y " `(tmp " (inc '*DumpBlob) ")")
+                                 (call 'cp "-a" F (tmp *DumpBlob)) ) ) )
+                        (T
+                           (prinl)
+                           (space 3)
+                           (print Y T) ) ) ) ) )
+            (prinl " )") )
+         (at "C" (println '(commit))) )
+      (println '(commit)) ) )
+
+(de dumpExt (Obj)
+   (prin "(obj ")
+   (let K (dumpKey> Obj)
+      (ifn (cadr K)
+         (print (dumpType> Obj) (id Obj T))
          (prin "(")
-         (_dmp (pop 'Obj) T)
-         (while (pair Obj)
+         (printsp (dumpType> Obj) (car K))
+         (dumpVal @)
+         (prin ")") )
+      K ) )
+
+(de dumpVal (X)
+   (nond
+      ((atom X)
+         (prin "(")
+         (dumpVal (pop 'X))
+         (while (pair X)
             (space)
-            (_dmp (pop 'Obj) T) )
-         (when Obj
-            (prin " . ")
-            (_dmp Obj T) )
+            (dumpVal (pop 'X)) )
+         (when X (prin " . ") (dumpVal X))
          (prin ")") )
-      ((ext? Obj)
-         (when Flg
-            (prin "`(obj ") )
-         (prin "(")
-         (catch NIL
-            (maps
-               '((X)
-                  (with (and (pair X) (meta Obj (cdr X)))
-                     (when (isa '+Key This)
-                        (or Flg (push 'Lst X))
-                        (printsp (type Obj) (: var))
-                        (_dmp (car X) T)
-                        (throw) ) ) )
-               Obj )
-            (print (type Obj))
-            (maps
-               '((X)
-                  (with (and (pair X) (meta Obj (cdr X)))
-                     (when (isa '+Ref This)
-                        (space)
-                        (or Flg (push 'Lst X))
-                        (print (: var))
-                        (space)
-                        (_dmp (car X) T) ) ) )
-               Obj ) )
-         (when Flg
-            (prin ")") )
-         (prin ")") )
-      (T (print Obj)) ) )
+      ((ext? X) (print X))
+      ((type X) (print (val X)))
+      (NIL (prin "`") (dumpExt X) (prin ")")) ) )
 
 ### Debug ###
 `*Dbg

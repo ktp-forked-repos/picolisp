@@ -1,4 +1,4 @@
-# 29nov12tj
+# 20aug14abu
 # (c) Software Lab. Alexander Burger
 
 # Prompt
@@ -40,13 +40,23 @@
          (T (line) T)
          ("Fun" (pop '"M")) ) ) )
 
+(de less (X)
+   (if (atom X)
+      X
+      (cons
+         (less (pop 'X))
+         (if (atom X)
+            X
+            (cons
+               (less (pop 'X))
+               (and X '(..)) ) ) ) ) )
+
 (de what (S)
    (let *Dbg NIL
       (setq S (chop S))
       (filter
          '(("X") (match S (chop "X")))
          (all) ) ) )
-
 
 (de who ("X" . "*Prg")
    (let (*Dbg NIL  "Who" '("Who" @ @@ @@@))
@@ -100,6 +110,11 @@
          (not "*Prg")
          (let *Dbg (up 2 *Dbg) (run "*Prg")) ) ) )
 
+(de has ("X")
+   (let *Dbg NIL
+      (filter
+         '(("S") (= "X" (val "S")))
+         (all) ) ) )
 
 (de can (X)
    (let *Dbg NIL
@@ -263,8 +278,8 @@
 
 (de dbg (Lst)
    (when (pair Lst)
-      (case (pop 'Lst)
-         ((case state)
+      (casq (pop 'Lst)
+         ((case casq state)
             (_dbg Lst)
             (for L (cdr Lst)
                (map _dbg (cdr L)) ) )
@@ -410,10 +425,37 @@
 # Benchmarking
 (de bench Prg
    (let U (usec)
-      (prog1 (run Prg 1)
+      (prog1
+         (run Prg 1)
          (out 2
             (prinl
                (format (*/ (- (usec) U) 1000) 3)
                " sec" ) ) ) ) )
+
+`(== 64 64)  # Only in the 64-bit version
+
+# Backtrace
+(de bt (Flg)
+   (let *Dbg NIL
+      (for (L (trail T)  L)
+         (let X (pop 'L)
+            (if (pair X)
+               (pretty
+                  (cons
+                     (or
+                        (and (sym? (car X)) (car X))
+                        (less (has (car X)))
+                        (car X) )
+                     (less (cdr X)) ) )
+               (space 3)
+               (print X (less (pop 'L))) ) )
+         (prinl)
+         (T (== '^ (car L)))
+         (NIL
+            (or
+               Flg
+               (atom (car L))
+               (nor (== 'bt (caar L)) (line)) )
+            T ) ) ) )
 
 # vi:et:ts=3:sw=3

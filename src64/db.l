@@ -1,4 +1,4 @@
-# 23feb13abu
+# 08sep14abu
 # (c) Software Lab. Alexander Burger
 
 # 6 bytes in little endian format
@@ -1630,7 +1630,7 @@
                      end
                      ld Y (Y CDR)
                   loop
-                  ld A NIX
+                  ld B NIX
                   call putBlockBZ  # Output NIX
                   ld Z (DbBlock)  # Block buffer in Z again
                   ld B (Z)  # Lowest byte of link field
@@ -1799,8 +1799,10 @@
    ld E TSym  # Return T
    ret
 
-# (rollback) -> T
+# (rollback) -> flg
 (code 'doRollback 2)
+   null (DBs)  # DB open?
+   jz retNil  # No
    push X
    push Y
    ld X Extern  # Iterate external symbol tree

@@ -1,4 +1,4 @@
-# 07jan13abu
+# 11sep14abu
 # Mansur Mamkin <mmamkin@mail.ru>
 
 # errno
@@ -25,7 +25,7 @@
 # stdio
 (equ BUFSIZ 1024)
 (equ PIPE_BUF 512)
-(equ MAXPATHLEN 0)
+(equ GETCWDLEN 0)
 (equ stdin  "$__stdinp")
 (equ stdout "$__stdoutp")
 (equ stderr "$__stderrp")
@@ -72,8 +72,12 @@
 # termios
 (equ TERMIOS 44)
 (equ C_IFLAG 0)
+(equ C_OFLAG 4)
+(equ C_CFLAG 8)
 (equ C_LFLAG 12)
 (equ C_CC 16)
+(equ OPOST 1)
+(equ ONLCR 4)
 (equ ISIG 128)
 (equ VMIN 16)
 (equ VTIME 17)

@@ -1,4 +1,4 @@
-# 23jun13abu
+# 21sep14abu
 # (c) Software Lab. Alexander Burger
 
 (code 'Code)
@@ -226,12 +226,12 @@
    ld E A  # Heap pointer
    ld (A HEAP) (Heaps)  # Set heap link
    ld (Heaps) A
-   add A (- HEAP 16)  # A on last cell in chunk
+   add A (- HEAP II)  # A on last cell in chunk
    ld X (Avail)  # Initialize free list
    do
       ld (A) X  # Link avail
       ld X A
-      sub A 16
+      sub A II
       cmp A E  # Done?
    until lt  # Yes
    ld (Avail) X  # Set new Avail
@@ -430,6 +430,8 @@
          movn (C) (OrgTermio) TERMIOS  # Copy original termio structure
          ld A 0  # Clear c_iflag
          st4 (C C_IFLAG)
+         ld A (+ OPOST ONLCR)  # Set ONLCR in c_oflag
+         st4 (C C_OFLAG)
          ld A ISIG  # ISIG in c_lflag
          st4 (C C_LFLAG)
          set (C (+ C_CC VMIN)) 1
@@ -509,6 +511,30 @@
    pop X
    ret
 
+# (kids) -> lst
+(code 'doKids 2)
+   push X
+   ld E Nil  # Result
+   ld X (Child)  # Iterate children
+   ld C (Children)  # Count
+   do
+      sub C VI  # More?
+   while ge  # Yes
+      null (X)  # 'pid'?
+      if nz  # Yes
+         call consE_A  # Cons result
+         ld (A CDR) E
+         ld E (X)  # with short number
+         shl E 4
+         or E CNT
+         ld (A) E
+         ld E A
+      end
+      add X VI  # Increment by sizeof(child)
+   loop
+   pop X
+   ret
+
 # (protect . prg) -> any
 (code 'doProtect 2)
    push X
@@ -534,16 +560,15 @@
       until z  # Yes
       ret
    end
-   ld A 0  # Init count
+   ld E 0  # Init count
    ld C (Avail)  # Get avail list
    do
       null C  # Any?
    while nz  # Yes
-      inc A  # Increment count
+      inc E  # Increment count
       ld C (C)  # Follow link
    loop
-   div CELLS  # (C is zero)
-   ld E A
+   shr E (- 20 4)  # Divide by CELLS (1M/16), clear tags
    shl E 4  # Make short number
    or E CNT
    ret
@@ -559,20 +584,20 @@
       if z  # No
          ld E (E)  # Eval 'cnt'
          call evCntEX_FE
-         shl E 22  # Main stack segment size [times 4 MB]
+         shl E 12  # Main stack segment size [times 4 kB]
          ld A (Stack0)  # Get stack top
          sub A E  # Decrement by main segment size
          ld (Stack1) A  # New coroutine stack base
-         shr E 2  # [to MB]
+         shr E 2  # [to bytes]
          ld (StkSize) E  # Set new stack size
-         shr E 16  # Make short number [MB]
+         shr E 6  # Make short number [kB]
          or E CNT
          pop X
          ret
       end
    end
    ld E (StkSize)  # Return current stack size
-   shr E 16  # Make short number [MB]
+   shr E 6  # Make short number [kB]
    or E CNT
    ld X (Stack1)  # Collect coroutines
    ld C (Stacks)  # Segment bitmask
@@ -617,13 +642,8 @@
    if nz  # No
       push Y
       ld Y (EnvBind)  # Bindings
-      null Y  # Any?
-      if nz  # Yes
-         null (Break)  # In breakpoint?
-         ldnz Y ((Y) I)  # Yes: Skip frame
-      end
       do
-         null Y  # Bindings?
+         null Y  # Any?
       while nz  # Yes
          ld C (Y)  # End of bindings
          null (Y -I)  # Env swap zero?
@@ -713,11 +733,6 @@
    eval
    ld Z E  # Keep 'flg' in Z
    ld X (EnvBind)  # Bindings
-   null X  # Any?
-   if nz  # Yes
-      null (Break)  # In breakpoint?
-      ldnz X ((X) I)  # Yes: Skip frame
-   end
    ld E Nil  # Result
    do
       null X  # Bindings?
@@ -788,13 +803,8 @@
    cmp X Nil  # NIL?
    if eq  # Yes
       ld X (EnvBind)  # Bindings
-      null X  # Any?
-      if nz  # Yes
-         null (Break)  # In breakpoint?
-         ldnz X ((X) I)  # Yes: Skip frame
-      end
       do
-         null X  # Bindings?
+         null X  # Any?
       while nz  # Yes
          ld A (X)  # End of bindings in A
          cmp (A -II) At  # Lambda frame?
@@ -816,11 +826,6 @@
    push Z
    ld E (E CDR)  # Last arg
    ld Y (EnvBind)  # Bindings
-   null Y  # Any?
-   if nz  # Yes
-      null (Break)  # In breakpoint?
-      ldnz Y ((Y) I)  # Yes: Skip frame
-   end
    ld Z X  # Value pointer
    do
       null Y  # Bindings?
@@ -2981,7 +2986,7 @@
 
 # (pwd) -> sym
 (code 'doPwd 2)
-   cc getcwd(0 MAXPATHLEN)  # Get current working directory
+   cc getcwd(0 GETCWDLEN)  # Get current working directory
    null A  # OK?
    jz retNil  # No
    push A  # Save buffer pointer
@@ -2997,7 +3002,7 @@
    call evSymE_E  # Evaluate to a symbol
    call pathStringE_SZ  # Write to stack buffer
    ld E Nil  # Preload return value
-   cc getcwd(0 MAXPATHLEN)  # Get current working directory
+   cc getcwd(0 GETCWDLEN)  # Get current working directory
    null A  # OK?
    if nz  # Yes
       push A  # Save buffer pointer
@@ -3041,7 +3046,16 @@
             cc freopen(S _w_ (stderr))  # Re-open standard error
             null A  # OK?
             if nz  # Yes
-               ld (((OutFiles) I) II) 1  # (stdout) OutFiles[1]->tty
+               ld A ((InFiles))  # InFiles[0] (stdin)
+               ld (A I) 0  # Clear 'ix'
+               ld (A II) 0  # Clear 'cnt'
+               ld (A III) 0  # Clear 'next'
+               cc tcgetattr(0 OrgTermio)  # Save terminal I/O
+               not B
+               ld (Tio) B  # and flag
+               ld A ((OutFiles) I)  # OutFiles[1] (stdout)
+               ld (A II) 1  # Set 'tty'
+               ld (A I) 0  # Clear 'ix'
                ld E TSym  # Return T
             end
          end

@@ -1,9 +1,9 @@
-# 17jun13abu
+# 02jun14abu
 # (c) Software Lab. Alexander Burger
 
 # *JS "*JS" *Style *Menu *Tab *ID
 
-(mapc allow '(*JS *Menu *Tab *ID))
+(mapc allow '(*JS *Menu *Tab *ID "!ping"))
 (setq *Menu 0  *Tab 1)
 (off "*JS")
 
@@ -44,16 +44,16 @@
          (T (cons Cls *Style)) ) ) )
 
 (de tag (Nm Attr Ofs Prg)
-   (prin '< Nm)
+   (prin "<" Nm)
    (and Attr (htStyle @))
-   (prin '>)
+   (prin ">")
    (if (atom Prg)
       (ht:Prin (eval Prg Ofs))
       (for X Prg
          (if (atom X)
             (ht:Prin (eval X Ofs))
             (eval X Ofs) ) ) )
-   (prin "</" Nm '>) )
+   (prin "</" Nm ">") )
 
 (de <tag> (Nm Attr . Prg)
    (tag Nm Attr 2 Prg) )
@@ -62,33 +62,34 @@
    (let "*JS" (append "*JS" "JS")
       (run "Prg") ) )
 
-(de style (X Prg)
-   (let *Style
-      (nond
-         (X *Style)
-         (*Style X)
-         ((pair X)
-            (cond
-               ((atom *Style) (pack *Style " " X))
-               ((and (atom (car *Style)) (atom (cdr *Style)))
-                  (list X *Style) )
-               ((find atom *Style)
-                  (replace *Style @ (pack @ " " X)) )
-               (T (cons X *Style)) ) )
-         ((or (pair (car X)) (pair (cdr X)))
-            (cond
-               ((atom *Style) (list *Style X))
-               ((and (atom (car *Style)) (atom (cdr *Style)))
-                  (if (= (car X) (car *Style))
-                     X
-                     (list *Style X) ) )
-               (T
-                  (cons X (delete (assoc (car X) *Style) *Style)) ) ) )
-         (NIL X) )
-      (run Prg 2 '(*Style)) ) )
+(de style (X S)
+   (nond
+      (X S)
+      (S X)
+      ((pair X)
+         (cond
+            ((atom S) (pack S " " X))
+            ((and (atom (car S)) (atom (cdr S)))
+               (list X S) )
+            ((find atom S)
+               (replace S @ (pack @ " " X)) )
+            (T (cons X S)) ) )
+      ((or (pair (car X)) (pair (cdr X)))
+         (cond
+            ((atom S) (list S X))
+            ((and (atom (car S)) (atom (cdr S)))
+               (if (= (car X) (car S))
+                  X
+                  (list S X) ) )
+            (T
+               (cons X (delete (assoc (car X) S) S)) ) ) )
+      (NIL
+         (for Y X
+            (setq S (style Y S)) ) ) ) )
 
 (de <style> ("X" . "Prg")
-   (style "X" "Prg") )
+   (let *Style (style "X" *Style)
+      (run "Prg") ) )
 
 (de nonblank (Str)
    (or Str `(pack (char 160) (char 160))) )
@@ -97,16 +98,23 @@
 (de html (Upd Ttl Css Attr . Prg)
    (httpHead NIL Upd)
    (ht:Out *Chunked
-      ## (xml? T)
       (prinl "<!DOCTYPE html>")
       (prinl "<html lang=\"" (or *Lang "en") "\">")
       (prinl "<head>")
-      (and Ttl (<tag> 'title NIL Ttl) (prinl))
+      (prinl "<meta name=\"viewport\" content=\"width=device-width\"/>")
+      (and (fin Ttl) (<tag> 'title NIL @) (prinl))
+      (mapc prinl Ttl)
       (and *Host *Port (prinl "<base href=\"" (baseHRef) "\"/>"))
       (when Css
-         (if (atom Css) ("css" Css) (mapc "css" Css)) )
+         (if (atom Css)
+            ("css" Css)
+            (mapc "css" Css)
+            (when (fin Css)
+               (prinl "<style type=\"text/css\">")
+               (prinl @)
+               (prinl "</style>") ) ) )
+      (and *SesId (javascript NIL "SesId=\"" @ "\""))
       (mapc javascript *JS)
-      (and *SesId (javascript NIL "SesId = '" @ "';"))
       (prinl "</head>")
       (tag 'body Attr 2 Prg)
       (prinl "</html>") ) )
@@ -120,6 +128,13 @@
          (prinl "<script type=\"text/javascript\" src=\"" (srcUrl JS) "\"></script>") )
       (when (rest)
          (prinl "<script type=\"text/javascript\">" @ "</script>") ) ) )
+
+(de ping (Min)
+   (timeout (setq *Timeout (* Min `(* 60 1000))))
+   (respond) )
+
+(de <ping> (Min)
+   (javascript NIL "onload=ping(" Min ")") )
 
 (de <div> (Attr . Prg)
    (tag 'div Attr 2 Prg)
@@ -210,7 +225,7 @@
       "\"" )
    (and Tar (prin " target=\"" Tar "\""))
    (and *Style (htStyle @))
-   (prin '>)
+   (prin ">")
    (ht:Prin Str)
    (prin "</a>") )
 
@@ -234,9 +249,11 @@
    (and Url (prin "</a>")) )
 
 (de <this> (Var Val . Prg)
-   (prin "<a href=\"" (sesId *Url) '? Var '= (ht:Fmt Val) "\"")
+   (prin "<a href=\""
+      (urlMT (sesId *Url) *Menu *Tab *ID
+         (pack "&" Var "=" (ht:Fmt Val) "\"") ) )
    (and *Style (htStyle @))
-   (prin '>)
+   (prin ">")
    (htPrin Prg 2)
    (prin "</a>") )
 
@@ -252,25 +269,21 @@
          (htPrin Prg 2) ) )
    (prinl) )
 
-(de <row> (Cls . Prg)
+(de <row> (Attr . Prg)
    (tag 'tr NIL 1
       (quote
          (let (L Prg  H (up "Head"))
             (while L
-               (let (X (pop 'L)  C (pack Cls (and Cls (caar H) " ") (caar H))  N 1)
+               (let (X (pop 'L)  A (car (pop 'H))  N 1)
                   (while (== '- (car L))
                      (inc 'N)
                      (pop 'L)
                      (pop 'H) )
-                  (setq C
-                     (if2 C (> N 1)
-                        (list C (cons 'colspan N))
-                        C
-                        (cons 'colspan N) ) )
                   (tag 'td
-                     (if (== 'align (car (pop 'H)))
-                        (list '(align . right) C)
-                        C )
+                     (style Attr
+                        (style
+                           (and (> N 1) (cons "colspan" N))
+                           (if (== 'align A) '(align (align . right)) A) ) )
                      1
                      (quote
                         (if (atom X)
@@ -295,15 +308,24 @@
                   (use X
                      (let L (and (sym? X) (chop X))
                         (do (or (num? X) (length X))
-                           (tag 'td
-                              (cond
-                                 ((pair X) (pop 'X))
-                                 ((= "." (pop 'L)) 'align) )
-                              1
-                              (quote
-                                 (if (atom (car Lst))
-                                    (ht:Prin (eval (pop 'Lst) 1))
-                                    (eval (pop 'Lst) 1) ) ) ) ) ) ) ) ) ) ) )
+                           (let
+                              (C
+                                 (cond
+                                    ((pair X) (pop 'X))
+                                    ((= "." (pop 'L)) 'align) )
+                                 E (pop 'Lst) )
+                              (unless (== '- E)
+                                 (when (== '- (car Lst))
+                                    (let N 1
+                                       (for (P Lst (and P (== '- (pop 'P))))
+                                          (inc 'N) )
+                                       (push 'N "colspan")
+                                       (setq C (if C (list C N) N)) ) )
+                                 (tag 'td C 1
+                                    (quote
+                                       (if (atom E)
+                                          (ht:Prin (eval E 1))
+                                          (eval E 1) ) ) ) ) ) ) ) ) ) ) ) ) )
    (prinl) )
 
 (de <trident> Lst
@@ -326,7 +348,8 @@
    (<span> (cons 'title "Str") "Txt") )
 
 (de <tip> ("Str" . "Prg")
-   (style (cons 'title "Str") "Prg") )
+   (let *Style (style (cons 'title "Str") *Style)
+      (run "Prg") ) )
 
 # Layout
 (de <layout> "Lst"
@@ -343,16 +366,19 @@
                      (glue "; "
                         (cons
                            "position:absolute"
-                           (pack "top:" "Y" "px")
-                           (pack "left:" "X" "px")
+                           (pack "top:" (abs "Y") (if (ge0 "Y") "px" "%"))
+                           (pack "left:" (abs "X") (if (ge0 "X") "px" "%"))
                            (cond
                               ((=0 "DX") "min-width:100%")
-                              ("DX" (pack "width:" @ "px")) )
+                              ("DX"
+                                 (pack "width:" (abs @) (if (ge0 "DX") "px" "%")) ) )
                            (cond
                               ((=0 "DY") "min-height:100%")
-                              ("DY" (pack "height:" @ "px")) )
+                              ("DY"
+                                 (pack "height:" (abs @ ) (if (ge0 "DY")"px" "%")) ) )
                            "Args" ) ) ) )
-               (prog1 (if "Cls" (list "Cls" "Style") "Style")  # -> '@'
+               (prog1
+                  (if "Cls" (list "Cls" "Style") "Style")  # -> '@'
                   (eval (cadr "L")) )
                (let "X" (+ "X" "DX")
                   (recurse (cddr "L") "Y") )
@@ -360,7 +386,7 @@
 
 # Menus
 (de urlMT (Url Menu Tab Id Str)
-   (pack Url '?  "*Menu=+" Menu  "&*Tab=+" Tab  "&*ID=" (ht:Fmt Id) Str) )
+   (pack Url "?"  "*Menu=+" Menu  "&*Tab=+" Tab  "&*ID=" (ht:Fmt Id) Str) )
 
 (de <menu> Lst
    (let (M 1  N 1  E 2  U)
@@ -400,6 +426,39 @@
                         (setq M (>> -1 M))
                         (recurse (cddr L) (inc N) (inc E)) ) ) ) ) ) ) ) )
 
+(de <bar> Lst
+   (use U
+      (<ul> NIL
+         (for (I . M) Lst
+            (if (= I *Menu)
+               (<li> "top"
+                  (<href>
+                     (eval (car M) 1)
+                     (urlMT *Url 0 *Tab *ID) )
+                  (<ul> NIL
+                     (for L (cdr M)
+                        (if (setq U (eval (cadr L) 1))
+                           (<li> (if (= U *Url) "act" "cmd")
+                              (<href> (eval (car L) 1)
+                                 (urlMT U 0 (if (= U *Url) *Tab 1)
+                                    (eval (caddr L))
+                                    (eval (cadddr L)) ) ) )
+                           (<li> "cmd"
+                              (ht:Prin (eval (car L) 1)) ) ) ) ) )
+               (<li> "sub"
+                  (<href>
+                     (eval (car M) 1)
+                     (urlMT *Url I *Tab *ID) ) ) ) ) ) ) )
+
+(de bar? (Attr)
+   (ifn (and *JS (gt0 *Menu))
+      Attr
+      (cons
+         (cons
+            "onclick"
+            (pack "if (!Btn.length) window.location.href='" (urlMT (sesId *Url) 0 *Tab *ID) "'") )
+         (if (pair (cdr Attr)) Attr (cons Attr)) ) ) )
+
 # Update link
 (de updLink ()
    (<tip> ,"Update"
@@ -417,15 +476,15 @@
 
 ### DB Linkage ###
 (de mkUrl (Lst)
-   (pack (pop 'Lst) '?
+   (pack (pop 'Lst) "?"
       (make
          (while Lst
             (and
                (sym? (car Lst))
                (= `(char '*) (char (car Lst)))
-               (link (pop 'Lst) '=) )
+               (link (pop 'Lst) "=") )
             (link (ht:Fmt (pop 'Lst)))
-            (and Lst (link '&)) ) ) ) )
+            (and Lst (link "&")) ) ) ) )
 
 (de <$> (Str Obj Msg Tab)
    (cond
@@ -494,7 +553,8 @@
          (prinl "^M") ) ) )
 
 (de <%> @
-   (prog1 (pass pack)
+   (prog1
+      (pass pack)
       (ht:Prin @)
       (prinl "<br/>")
       (<0> @) ) )
@@ -509,12 +569,20 @@
    "Lst" )
 
 (de <+> (Str Obj Msg Tab)
-   (<$> Str Obj Msg Tab)
-   (and "*CSV" (out @ (prin Str "^I"))) )
+   (if (sub? "^J" Str)
+      (let L (split (chop Str) "^J")
+         (<span> (cons 'title Str) (ht:Prin (car L)))
+         (and "*CSV" (out @ (prin (glue " " L) "^I"))) )
+      (<$> Str Obj Msg Tab)
+      (and "*CSV" (out @ (prin Str "^I"))) ) )
 
 (de <-> (Str Obj Msg Tab)
-   (<$> Str Obj Msg Tab)
-   (<0> Str) )
+   (if (sub? "^J" Str)
+      (let L (split (chop Str) "^J")
+         (<span> (cons 'title Str) (ht:Prin (car L)))
+         (<0> (glue " " L)) )
+      (<$> Str Obj Msg Tab)
+      (<0> Str) ) )
 
 # Interactive tree
 (de <tree> ("Url" "Path" "Tree" "Able?" "Excl?" "Expand" "Print")
@@ -548,7 +616,7 @@
             (let "L" (append "Lst" (cons "N"))
                (<href> (if (== "X" "Pos") "<+>" "[+]")
                   (pack "Url"
-                     '? (ht:Fmt (cons NIL "L"))
+                     "?" (ht:Fmt (cons NIL "L"))
                      "#T" (max 1 (- "A" 12)) ) )
                (space)
                ("Print" (car "X"))
@@ -579,7 +647,7 @@
 (de htmlVar ("Var")
    (prin "name=\"")
    (if (pair "Var")
-      (prin (car "Var") ":" (cdr "Var") ":")
+      (prin (car "Var") ":" (cdr "Var"))
       (prin "Var") )
    (prin "\"") )
 
@@ -651,7 +719,7 @@
       (htJs) )
    (dfltCss "area")
    (and Flg (prin " disabled=\"disabled\""))
-   (prin '>)
+   (prin ">")
    (ht:Prin (htmlVal "Var"))
    (prinl "</textarea>") )
 
@@ -662,7 +730,7 @@
       (prin " onchange=\"return fldChg(this)\"")
       (htJs) )
    (dfltCss "select")
-   (prin '>)
+   (prin ">")
    (for "X" Lst
       (let "V" (if (atom "X") "X" (car "X"))
          (prin
@@ -671,7 +739,7 @@
             (cond
                ((= "V" (htmlVal "Var")) " selected=\"selected\"")
                (Flg " disabled=\"disabled\"") )
-            '> )
+            ">" )
          (ht:Prin "V") )
       (prin "</option>") )
    (prinl "</select>") )
@@ -711,7 +779,7 @@
    (ht:Prin S)
    (prin "\"")
    (when *JS
-      (prin " onmousedown=\"inBtn(1)\" onblur=\"inBtn(0)\"")
+      (prin " onmousedown=\"inBtn(this,1)\" onblur=\"inBtn(this,0)\"")
       (and JS (prin " onclick=\"return doBtn(this)\""))
       (htJs) )
    (dfltCss "submit")
@@ -723,7 +791,7 @@
    (and "Var" (space) (htmlVar "Var"))
    (prin " src=\"" (sesId Src) "\"")
    (when *JS
-      (prin " onmousedown=\"inBtn(1)\" onblur=\"inBtn(0)\"")
+      (prin " onmousedown=\"inBtn(this,1)\" onblur=\"inBtn(this,0)\"")
       (and JS (prin " onclick=\"return doBtn(this)\""))
       (htJs) )
    (dfltCss "image")

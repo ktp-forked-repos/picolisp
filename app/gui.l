@@ -1,16 +1,17 @@
-# 02jun13abu
+# 06may14abu
 # (c) Software Lab. Alexander Burger
 
 ### GUI ###
 (de menu (Ttl . Prg)
    (action
       (html 0 Ttl *Css NIL
+         (<ping> 7)
          (<layout>
             ((180 0 'menu)
                (<div> @
                   (expires)
                   (<menu>
-                     (,"Home" "!start")
+                     (,"Home" "!work")
                      (,"logout" (and *Login "!stop"))
                      (NIL (<hr>))
                      (T ,"Data"
@@ -22,13 +23,13 @@
                         (,"Inventory" (and (may Report) "app/inventory.l"))
                         (,"Sales" (and (may Report) "app/sales.l")) )
                      (T ,"System"
-                        (,"Role Administration" (and (may RoleAdmin) "app/role.l"))
-                        (,"User Administration" (and (may UserAdmin) "app/user.l")) ) ) )
+                        (,"Role Administration" (and (may RoleAdmin) "@lib/role.l"))
+                        (,"User Administration" (and (may UserAdmin) "@lib/user.l")) ) ) )
                ((NIL NIL 'main)
                   (<div> @ (run Prg 1)) ) ) ) ) ) )
 
-(de start ()
-   (setq *Url "!start")
+(de work ()
+   (setq *Url "!work")
    (and (app) (setq *Menu 3))
    (menu "PicoLisp App"
       (<h2> NIL "PicoLisp App")
@@ -47,7 +48,7 @@
 
 (de stop ()
    (logout)
-   (start) )
+   (work) )
 
 # Search dialogs
 (de choCuSu (Dst)

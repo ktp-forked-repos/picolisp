@@ -249,9 +249,11 @@ href="refF.html#filter">filter</a></code>.
 <dt><a name="maps"><code>(maps 'fun 'sym ['lst ..]) -> any</code></a>
 <dd>Applies <code>fun</code> to all properties of <code>sym</code>. When
 additional <code>lst</code> arguments are given, their elements are also passed
-to <code>fun</code>. Returns the result of the last application. See also
-<code><a href="refP.html#putl">putl</a></code> and <code><a
-href="refG.html#getl">getl</a></code>.
+to <code>fun</code>. Returns the result of the last application. Note that
+'maps' should only be used when the property list is not modified by
+<code>fun</code>. Otherwise it is better to use a loop over the result of
+<code><a href="refG.html#getl">getl</a></code>. See also <code><a
+href="refP.html#putl">putl</a></code>.
 
 <pre><code>
 : (put 'X 'a 1)
@@ -348,7 +350,8 @@ href="refG.html#genKey">genKey</a></code>.
 <dd>Applies <code>fun</code> to each element of <code>lst</code>. When
 additional <code>lst</code> arguments are given, their elements are also passed
 to <code>fun</code>. Returns that element from <code>lst</code> for which
-<code>fun</code> returned a maximal value. See also <code><a
+<code>fun</code> returned a maximal value (and stores the maximal value in the
+global variable <code><a href="ref_.html#@@">@@</a></code>). See also <code><a
 href="refM.html#mini">mini</a></code> and <code><a
 href="refS.html#sort">sort</a></code>.
 
@@ -516,7 +519,8 @@ href="refG.html#genKey">genKey</a></code>.
 <dd>Applies <code>fun</code> to each element of <code>lst</code>. When
 additional <code>lst</code> arguments are given, their elements are also passed
 to <code>fun</code>. Returns that element from <code>lst</code> for which
-<code>fun</code> returned a minimal value. See also <code><a
+<code>fun</code> returned a minimal value (and stores the minimal value in the
+global variable <code><a href="ref_.html#@@">@@</a></code>). See also <code><a
 href="refM.html#maxi">maxi</a></code> and <code><a
 href="refS.html#sort">sort</a></code>.
 
@@ -605,7 +609,7 @@ leaf ((Tree) (let (Node (cdr (root Tree)) X) (while (val Node) (setq X (cadr @) 
    *Dbg ((173 . "lib/btree.l"))
 
 nil 67284680
-   T (((@X) (@ not (-> @X))))
+   T (((@X) (^ @ (not (-> @X)))))
 .                                      # Stop
 -> T
 

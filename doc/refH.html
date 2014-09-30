@@ -45,6 +45,24 @@ See also <a href="ref.html#dbase">Database</a>.
 (rel nm (+Hook2 +IdxFold +String) 3 shop)       # Global and shop-local index
 </code></pre>
 
+<dt><a name="has"><code>(has 'any) -> lst</code></a>
+<dd>(Debug mode only) Returns a list of all internal symbols which have the
+value <code>any</code>. See also <code><a href="refW.html#who">who</a></code>,
+<code><a href="refC.html#can">can</a></code>, <code><a
+href="refW.html#what">what</a></code> and <code><a
+href="refD.html#dep">dep</a></code>.
+
+<pre><code>
+: +
+-> 270310
+: (has 270310)
+-> (+ @)
+: meth
+-> 267259
+: (has 267259)
+-> (@ js> dec> inc> upd> ele> log> chk> val> del> rel> all> url> zap> clr> str> has>
+</code></pre>
+
 <dt><a name="hash"><code>(hash 'any) -> cnt</code></a>
 <dd>Generates a 16-bit number (1-65536) from <code>any</code>, suitable as a
 hash value for various purposes, like randomly balanced <code><a
@@ -197,17 +215,17 @@ Cache-Control: max-age=0
 Cache-Control: no-cache
 Content-Type: text/html; charset=utf-8
 
-&lt;!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"&gt;
-&lt;html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"&gt;
+&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
 &lt;head&gt;
+&lt;meta name="viewport" content="width=device-width"/&gt;
 &lt;title&gt;Hello&lt;/title&gt;
 &lt;link rel="stylesheet" href="http://:/lib.css" type="text/css"/&gt;
 &lt;/head&gt;
 &lt;body&gt;&lt;h2&gt;Hello&lt;/h2&gt;
 &lt;p&gt;Hello!&lt;/p&gt;
 &lt;p&gt;This is a test.&lt;/p&gt;
-&lt;/body&gt;
-&lt;/html&gt;
+&lt;/body&gt;&lt;/html&gt;
 </code></pre>
 
 <dt><a name="hex"><code>(hex 'num ['num]) -> sym</code></a>

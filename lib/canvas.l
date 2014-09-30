@@ -1,66 +1,78 @@
-# 15may13abu
+# 17apr14abu
 # (c) Software Lab. Alexander Burger
 
 (allow "!jsDraw" )
 (push1 '*JS (allow "@lib/plio.js") (allow "@lib/canvas.js"))
 
-(de canvasCommands Lst
-   (for (Opc . L) Lst
-      (def (car L)
-         (list
-            (cdr L)
-            (list 'link
-               (if (cdr L)
-                  (cons 'list Opc @)
-                  (list Opc) ) ) ) ) ) )
+# Canvas Commands
+(for (Opc . L)
+   (quote  # In sync with "@lib/canvas.js"
+      ### Functions ###
+      (csFillText Str X Y)
+      (csStrokeLine X1 Y1 X2 Y2)
+      (csClearRect X Y DX DY)
+      (csStrokeRect X Y DX DY)
+      (csFillRect X Y DX DY)
+      (csBeginPath)
+      (csClosePath)
+      (csMoveTo X Y)
+      (csLineTo X Y)
+      (csBezierCurveTo X1 Y1 X2 Y2 X Y)
+      (csLine X1 Y1 X2 Y2)
+      (csRect X Y DX DY)
+      (csArc X Y R A B F)
+      (csStroke)
+      (csFill)
+      (csClip)
+      (csDef Key DX DY Lst)
+      (csDraw Key X Y)
+      (csDrawDots DX DY Lst)
+      (csDrawImage Img X Y Lst DX DY)
+      (csTranslate X Y)
+      (csRotate A)
+      (csScale X Y)
+      (csSave)
+      (csRestore)
+      ### Variables ###
+      (csCursor Lst)
+      (csFillStyle V)
+      (csStrokeStyle V)
+      (csGlobalAlpha V)
+      (csLineWidth V)
+      (csLineCap V)
+      (csLineJoin V)
+      (csMiterLimit V)
+      (csGlobalCompositeOperation V)
+      (csPost) )
+   (def (car L)
+      (list
+         (cdr L)
+         (list 'link
+            (if (cdr L)
+               (cons 'list Opc @)
+               (list Opc) ) ) ) ) )
 
-(canvasCommands  # In sync with "@lib/canvas.js"
-   ### Functions ###
-   (csFillText Str X Y)
-   (csStrokeLine X1 Y1 X2 Y2)
-   (csClearRect X Y DX DY)
-   (csStrokeRect X Y DX DY)
-   (csFillRect X Y DX DY)
-   (csBeginPath)
-   (csClosePath)
-   (csMoveTo X Y)
-   (csLineTo X Y)
-   (csBezierCurveTo X1 Y1 X2 Y2 X Y)
-   (csLine X1 Y1 X2 Y2)
-   (csRect X Y DX DY)
-   (csArc X Y R A B F)
-   (csStroke)
-   (csFill)
-   (csClip)
-   (csDrawImage Img DX DY)
-   (csTranslate X Y)
-   (csRotate A)
-   (csScale X Y)
-   (csSave)
-   (csRestore)
-   ### Variables ###
-   (csFillStyle V)
-   (csStrokeStyle V)
-   (csGlobalAlpha V)
-   (csLineWidth V)
-   (csLineCap V)
-   (csLineJoin V)
-   (csMiterLimit V)
-   (csGlobalCompositeOperation V) )
-
-(de canvas (Id DX DY)
-   (prinl
+(de <canvas> (Id DX DY Alt)
+   (prin
       "<canvas id=\"" Id
       "\" width=\"" DX
       "\" height=\"" DY
-      "\">" Id
-      "</canvas>" ) )
+      "\" onmousedown=\"csMouseDn(this, event)"
+      "\" onmousemove=\"csMouseMv(this, event)"
+      "\" onmouseout=\"csMouseOut(this)"
+      "\" onmouseup=\"csMouseUp(this)\"" )
+   (dfltCss "canvas")
+   (prinl ">" Alt "</canvas>" ) )
 
-(de jsDraw (Id)
+# Draw   (drawCanvas Id Dly)
+# Click  (drawCanvas Id Dly 1 X Y)
+# Double (drawCanvas Id Dly 2 X Y)
+# Start  (drawCanvas Id Dly 0 X Y X2 Y2)
+# Move   (drawCanvas Id Dly -1 X Y X2 Y2)
+(de jsDraw (Id Dly F X Y X2 Y2)
    (http1 "application/octet-stream" 0)
-   (let Lst (drawCanvas Id)
-      (prinl "Content-Length: " (bytes Lst) "^M")
-      (prinl "^M")
+   (let Lst (drawCanvas Id Dly F X Y X2 Y2)
+      (prinl "Content-Length: " (bytes Lst) "^M^J^M")
       (pr Lst) ) )
 
 # vi:et:ts=3:sw=3

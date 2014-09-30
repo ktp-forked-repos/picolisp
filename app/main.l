@@ -1,16 +1,16 @@
-# 01jun13abu
+# 31jul14abu
 # (c) Software Lab. Alexander Burger
 
 (allowed ("app/")
-   "!start" "!stop" "@lib.css" "!psh" )
+   "!work" "!stop" "@lib.css" "!psh" )
 
+(scl 2)
 (load
    "@lib/http.l" "@lib/xhtml.l" "@lib/form.l"
    "@lib/ps.l" "@lib/adm.l"
    "@lib/boss.l" )
 
 (setq
-   *Scl 2
    *Css "@lib.css"
    *Blob "blob/app/"
    *Salt (16 . "$6$@1$") )
@@ -37,6 +37,7 @@
    ("Deutsch (CH)" "CH" . "ch")
    ("Norsk" "NO" . "no")
    ("Русский" "RU" . "ru")
+   ("Svenska" "SE" . "se")
    ("日本語" "JP" . "jp") )
 
 # Entry point
@@ -46,21 +47,22 @@
    (unless (seq *DB)
       (load "app/init.l") ) )
 
-(de go ()
-   (pw 12)
-   (task (port 4040)  # Set up query server in the background
-      (let? Sock (accept @)
-         (unless (fork)  # Child process
-            (in Sock
-               (while (rd)
-                  (sync)
-                  (tell)
-                  (out Sock
-                     (pr (eval @)) ) ) )
-            (bye) )
-         (close Sock) ) )
-   (forked)
+(de go (Rpc)
+   (when Rpc
+      (task (port @)  # Set up query server in the background
+         (let? Sock (accept @)
+            (unless (fork)  # Child process
+               (in Sock
+                  (while (rd)
+                     (sync)
+                     (tell)
+                     (out Sock
+                        (pr (eval @)) ) ) )
+               (bye) )
+            (close Sock) ) )
+      (forked) )
    (rollback)
-   (server 8080 "!start") )
+   (retire 20)
+   (server (or (format (sys "PORT")) 8080) "!work") )
 
 # vi:et:ts=3:sw=3

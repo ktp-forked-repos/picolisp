@@ -1,14 +1,16 @@
-# 23feb13abu
+# 25jul14abu
 # (c) Software Lab. Alexander Burger
 
-# *Home *Gate *Host *Port *Port1 *Port% *Http1 *Chunked
-# *Sock *Agent *ContLen *MPartLim *MPartEnd "*HtSet"
+# *HPorts *Home *Gate *Host *Port *Port1 *Port% *Http1 *Chunked
+# *Sock *Agent *ContL *ContLen *MPartLim *MPartEnd "*HtSet"
 # *Post *Url *Timeout *SesAdr *SesId *ConId
 # *Referer *Cookies "*Cookies"
 
 (default
    *HPorts 0
    *Timeout (* 300 1000) )
+
+(mapc allow '(*Adr *Gate *Cipher *Host *ContL))
 
 (zero *Http1)
 
@@ -83,7 +85,7 @@
 (de server (P H)
    (setq
       *Port P
-      *Port1 P
+      *Port1 (or (sys "NAME") P)
       *Home (cons H (chop H))
       P (port *Port) )
    (gc)
@@ -98,10 +100,21 @@
       (when (accept *Sock)
          (task @ (http @)) ) ) )
 
+(de retire (Min)
+   (when (sys "PORT")
+      (task -60000 60000  X (cons Min Min)
+         (cond
+            (*Adr (off *Adr) (set X (cdr X)))
+            ((kids) (set X (cdr X)))
+            ((=0 (dec X)) (bye)) ) )
+      (forked) ) )
+
 (de baseHRef (Port . @)
    (pass pack
       (or *Gate "http") "://" *Host
-      (if *Gate "/" ":") (or Port *Port) "/" ) )
+      (if *Gate "/" ":")
+      (or Port (if *SesId *Port *Port1))
+      "/" ) )
 
 (de https @
    (pass pack "https://" *Host "/" *Port "/" *SesId) )
@@ -119,9 +132,9 @@
             (and *Tmp (pre? *Tmp *Url))
             (find pre? (cdr *Allow) (circ *Url)) ) ) ) )
 
-(de notAllowed (X S)
+(de notAllowed (X)
    (unless (= X "favicon.ico")
-      (msg X S " [" *Adr "] not allowed") ) )
+      (msg X " [" *Adr "] not allowed") ) )
 
 # Application startup
 (de app ()
@@ -142,14 +155,14 @@
 # Handle HTTP-Transaction
 (de http (S)
    (use (*Post L @U @H @X)
-      (off *Post *Port% *ContLen *Cookies "*Cookies" "*HtSet")
-      (catch "http"
+      (off *Post *Port% *ContL *ContLen *Cookies "*Cookies" "*HtSet")
+      (catch 'http
          (in S
             (cond
                ((not (setq L (line)))
                   (task (close S))
                   (off S)
-                  (throw "http") )
+                  (throw 'http) )
                ((match '("G" "E" "T" " " "/" @U " " "H" "T" "T" "P" "/" "1" "." @H) L)
                   (_htHead) )
                ((match '("P" "O" "S" "T" " " "/" @U " " "H" "T" "T" "P" "/" "1" "." @H) L)
@@ -159,7 +172,7 @@
                   (cond
                      (*MPartLim (_htMultipart))
                      ((=0 *ContLen))
-                     ((if *ContLen (ht:Read @) (line))
+                     ((cond (*ContL (line)) (*ContLen (ht:Read @)))
                         (for L (split @ '&)
                            (when (setq L (split L "="))
                               (let? S (_htSet (car L) (ht:Pack (cadr L)))
@@ -168,7 +181,7 @@
                                     (format (car @))
                                     (unless (out (tmp S) (echo @))
                                        (call 'rm "-f" (tmp S)) ) ) ) ) ) )
-                     (T (throw "http")) ) )
+                     (T (throw 'http)) ) )
                (T
                   (out S
                      (if
@@ -186,7 +199,7 @@
                         (httpStat 400 "Bad Request") ) )
                   (task (close S))
                   (off S)
-                  (throw "http") ) )
+                  (throw 'http) ) )
             (if (or (<> *ConId *SesId) (and *SesAdr (<> @ *Adr)))
                (prog (task (close S)) (off S))
                (setq
@@ -226,16 +239,9 @@
                      (T (httpEcho *Url "application/octet-stream" 1 T)) ) ) ) ) )
       (and S (=0 *Http1) (task (close S))) ) )
 
-(de _htHost H
-   (setq *Host
-      (cond
-         (*Gate H)
-         ((index ":" H) (head (dec @) H))
-         (T H) ) ) )
-
 (de _htHead ()
-   (use (L @X @Y Pil)
-      (setq *Http1 (format (car @H))  *Chunked (gt0 *Http1)  Pil)
+   (use (L @X @Y)
+      (setq *Http1 (format (car @H))  *Chunked (gt0 *Http1))
       (if (index "~" @U)
          (setq
             *ConId (head @ @U)
@@ -245,7 +251,7 @@
       (while (setq L (line))
          (cond
             ((match '(~(chop "Host: ") . @X) L)
-               (fifo 'Pil (cons '_htHost @X)) )
+               (setq *Host @X) )
             ((match '(~(chop "Referer: ") . @X) L)
                (setq *Referer @X) )
             ((match '(~(chop "Cookie: ") . @X) L)
@@ -264,9 +270,9 @@
                   *MPartLim (append '(- -) @X)
                   *MPartEnd (append *MPartLim '(- -)) ) )
             ((match '(~(chop "X-Pil: ") @X "=" . @Y) L)
-               (fifo 'Pil (list 'setq (intern (pack @X)) (htArg @Y))) ) ) )
-      (while Pil
-         (eval (fifo 'Pil)) ) ) )
+               (_htSet @X (ht:Pack @Y)) ) ) )
+      (unless *Gate
+         (and (member ":" *Host) (con (prior @ *Host))) ) ) )
 
 # rfc1867 multipart/form-data
 (de _htMultipart ()
@@ -274,7 +280,7 @@
       (setq L (line))
       (while (= *MPartLim L)
          (unless (match '(~(chop "Content-Disposition: form-data; name=") . @X) (line))
-            (throw "http") )
+            (throw 'http) )
          (while (line))
          (cond
             ((not (member ";" @X))
@@ -287,7 +293,7 @@
                               (= *MPartLim (setq L (line)))
                               (= *MPartEnd L) )
                            (when (eof)
-                              (throw "http") )
+                              (throw 'http) )
                            (when (made)
                               (link "^J") )
                            (link (trim L)) ) ) ) ) )
@@ -301,44 +307,35 @@
                   (out "/dev/null" (echo (pack "^M^J" *MPartLim))) )
                (setq L (if (= "-" (car (line))) *MPartEnd *MPartLim)) ) ) ) ) )
 
-(de _htSet ("Var" Val)
-   (let (@N NIL  @Z NIL  @V)
-      (setq "Var"
-         (intern
-            (ht:Pack
-               (ifn (match '(@V ":" @N ":" @Z) "Var")
-                  "Var"
-                  (setq @N (format @N))
-                  @V ) ) ) )
-      (when @Z
-         (setq Val
-            (cond
-               ((= @Z '("." "x")) (cons (format Val)))
-               ((= @Z '("." "y")) (cons NIL (format Val)))
-               (T (msg @Z " bad suffix") (throw "http")) ) ) )
+(de _htSet (L Val)
+   (let "Var" (intern (ht:Pack (car (setq L (split L ":")))))
       (cond
          ((and *Allow (not (idx *Allow "Var")))
-            (notAllowed "Var" ':)
-            (throw "http") )
-         ((not @N)
-            (nond
-               ((= `(char '*) (char "Var")) (put "Var" 'http Val))
-               ((and @Z (val "Var")) (set "Var" Val))
-               ((car Val) (con (val "Var") (cdr Val)))
-               (NIL (set (val "Var") (car Val))) ) )
-         ((not (memq "Var" "*HtSet"))
-            (push '"*HtSet" "Var")
-            (set "Var" (cons (cons @N Val)))
-            Val )
-         ((assoc @N (val "Var"))
-            (let X @
-               (cond
-                  ((nand @Z (cdr X)) (con X Val))
-                  ((car Val) (set (cdr X) @))
-                  (T (con (cdr X) (cdr Val))) ) ) )
+            (notAllowed "Var")
+            (throw 'http) )
+         ((cadr L)
+            (let? N (format (car (setq L (split @ "."))))
+               (case (caadr L)
+                  ("x" (setq Val (cons (format Val))))
+                  ("y" (setq Val (cons NIL (format Val)))) )
+               (nond
+                  ((memq "Var" "*HtSet")
+                     (push '"*HtSet" "Var")
+                     (set "Var" (cons (cons N Val)))
+                     Val )
+                  ((assoc N (val "Var"))
+                     (queue "Var" (cons N Val))
+                     Val )
+                  (NIL
+                     (let X @
+                        (cond
+                           ((nand (cadr L) (cdr X)) (con X Val))
+                           ((car Val) (set (cdr X) @))
+                           (T (con (cdr X) (cdr Val))) ) ) ) ) ) )
          (T
-            (queue "Var" (cons @N Val))
-            Val ) ) ) )
+            (if (= "*" (caar L))
+               (set "Var" Val)
+               (put "Var" 'http Val) ) ) ) ) )
 
 (de htArg (Lst)
    (case (car Lst)
@@ -377,6 +374,11 @@
          (and (pop 'L) (prin "; HttpOnly"))
          (prinl) )
       "*Cookies" ) )
+
+(de respond (S)
+   (http1 "application/octet-stream" 0)
+   (prinl "Content-Length: " (size S) "^M^J^M")
+   (prin S) )
 
 (de httpHead (Typ Upd File Att)
    (http1 Typ Upd File Att)
@@ -417,23 +419,28 @@
          (pre? "http:" Url)
          (pre? "https:" Url)
          (pre? "mailto:" Url)
-         (pre? "javascript:" Url) )
+         (pre? "javascript:" Url)
+         (pre? "tel:" Url) )
       Url
       (pack *SesId Url) ) )
 
-(de httpStat (N Str . @)
-   (prinl "HTTP/1." *Http1 " " N " " Str "^M")
-   (prinl "Server: PicoLisp^M")
-   (while (args)
-      (prinl (next) "^M") )
-   (prinl "Content-Type: text/html^M")
-   (httpCookies)
-   (prinl "Content-Length: " (+ 68 (length N) (* 2 (length Str))) "^M")
-   (prinl "^M")
-   (prinl "<HTML>")
-   (prinl "<HEAD><TITLE>" N " " Str "</TITLE></HEAD>")
-   (prinl "<BODY><H1>" Str "</H1></BODY>")
-   (prinl "</HTML>") )
+(de httpStat (N X . @)
+   (let B (fin X)
+      (if (pair X)
+         (setq X (car X))
+         (setq B (pack "<H1>" B "</H1>")) )
+      (prinl "HTTP/1." *Http1 " " N " " X "^M")
+      (prinl "Server: PicoLisp^M")
+      (while (args)
+         (prinl (next) "^M") )
+      (prinl "Content-Type: text/html^M")
+      (httpCookies)
+      (prinl "Content-Length: " (+ 59 (length N) (length X) (length B)) "^M")
+      (prinl "^M")
+      (prinl "<HTML>")
+      (prinl "<HEAD><TITLE>" N " " X "</TITLE></HEAD>")
+      (prinl "<BODY>" B "</BODY>")
+      (prinl "</HTML>") ) )
 
 (de noContent ()
    (httpStat 204 "No Content") )
@@ -443,7 +450,7 @@
 
 (de forbidden ()
    (httpStat 403 "No Permission")
-   (throw "http") )
+   (throw 'http) )
 
 (de http404 ()
    (httpStat 404 "Not Found") )

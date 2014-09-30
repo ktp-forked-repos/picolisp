@@ -37,19 +37,28 @@
 "Delete" "Slett"
 "Delete @1?" "Slett @1?"
 "Data not found" "Data ble ikke funnet"
+"Undo" "Angre"
+"Undo: '@1'" "Angre: '@1'"
+"Redo" "Utfør likevel"
+"Redo: '@1'" "Utfør likevel: '@1'"
 
 # General
 "login" "logg inn"
 "logout" "logg ut"
 "' logged in" "' er innlogget"
 "Name" "Navn"
+"Login Name" "Innloggingsnavn"
+"Full Name" "Fullt navn"
 "Password" "Passord"
 "Permission denied" "Ingen adgangsrett"
 "Permissions" "Adgangsrettigheter"
 "Role" "Rolle"
+"Role Administration" "Rolle-administrasjon"
 "Roles" "Roller"
 "User" "Bruker"
+"User Administration" "Bruker-administrasjon"
 "Users" "Brukere"
+"Phone" "Telefon"
 
 # Tooltips
 "Open submenu" "Åpne undermeny"

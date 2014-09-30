@@ -1,4 +1,4 @@
-# 30may13abu
+# 21jul14abu
 # (c) Software Lab. Alexander Burger
 
 # *Salt *Login *Users *Perms
@@ -22,21 +22,21 @@
                (get
                   '`(mapcar char
                      (conc
-                        (range 46 57)
-                        (range 65 90)
-                        (range 97 122) ) )
+                        (range (char ".") (char "9"))
+                        (range (char "A") (char "Z"))
+                        (range (char "a") (char "z")) ) )
                   (inc (& 63 (rd 1))) ) ) ) ) ) )
 
-(de auth (Nm Pw)
-   (with (db 'nm '+User Nm)
+(de auth (Nm Pw Cls)
+   (with (db 'nm (or Cls '+User) Nm)
       (and
          (: pw 0)
          (= @ (passwd Pw @))
          This ) ) )
 
 ### Login ###
-(de login (Nm Pw)
-   (ifn (setq *Login (auth Nm Pw))
+(de login (Nm Pw Cls)
+   (ifn (setq *Login (auth Nm Pw Cls))
       (msg *Pid " ? " Nm)
       (msg *Pid " * " (stamp) " " Nm)
       (tell 'hi *Pid Nm *Adr)
@@ -54,10 +54,10 @@
       (timeout (setq *Timeout `(* 300 1000))) ) )
 
 (de hi (Pid Nm Adr)
-   (if (and (= Nm (get *Login 'nm)) (= Adr *Adr))
+   (if (and Nm (= Nm (; *Login nm)) (= Adr *Adr))
       (bye)
       (hi2 Pid Nm)
-      (tell 'hi2 *Pid (get *Login 'nm)) ) )
+      (tell 'hi2 *Pid (; *Login nm)) ) )
 
 (de hi2 (Pid Nm)
    (if2 Nm (lup *Users Pid)
@@ -73,6 +73,11 @@
 (rel perm (+List +Symbol))             # Permission list
 (rel usr (+List +Joint) role (+User))  # Associated users
 
+(allow "@lib/role.l")
+
+(dm url> (Tab)
+   (and (may RoleAdmin) (list "@lib/role.l" '*ID This)) )
+
 
 ### User ###
 (class +User +Entity)
@@ -80,6 +85,14 @@
 (rel nm (+Need +Key +String))          # User name
 (rel pw (+Swap +String))               # Password
 (rel role (+Joint) usr (+Role))        # User role
+(rel nam (+String))                    # Full Name
+(rel tel (+String))                    # Phone
+(rel em (+String))                     # EMail
+
+(allow "@lib/user.l")
+
+(dm url> (Tab)
+   (and (may UserAdmin) (list "@lib/user.l" '*ID This)) )
 
 
 ### Permission management ###
@@ -89,12 +102,12 @@
       (def (pop 'Lst) (pop 'Lst)) ) )
 
 (de may Args
-   (mmeq Args (get *Login 'role 'perm)) )
+   (mmeq Args (; *Login role perm)) )
 
 (de must Args
    (unless
       (if (cdr Args)
-         (mmeq @ (get *Login 'role 'perm))
+         (mmeq @ (; *Login role perm))
          *Login )
       (msg *Pid " No permission: " (car Args))
       (forbidden) ) )
@@ -116,6 +129,17 @@
       (when *Login
          (<nbsp> 4)
          (<span> "bold green"
-            (<big> (ht:Prin "'" (; *Login nm) ,"' logged in")) ) ) ) )
+            (ht:Prin "'" (; *Login nm) ,"' logged in") ) ) ) )
+
+(class +PasswdField +E/R +Fmt +TextField)
+
+(dm T @
+   (pass super
+      '(pw : home obj)
+      '((V) (and V "****"))
+      '((V)
+         (if (= V "****")
+            (: home obj pw 0)
+            (passwd V (: home obj pw 0)) ) ) ) )
 
 # vi:et:ts=3:sw=3
